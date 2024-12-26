@@ -1,3 +1,3 @@
-module github.com/lzmhhh123/decimal
+module github.com/FoF-Capital-LTP/decimal
 
 go 1.22
