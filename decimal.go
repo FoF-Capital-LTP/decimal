@@ -2741,14 +2741,54 @@ func (d Decimal) Equal(e Decimal) bool {
 	return d.Cmp(e) == 0
 }
 
-// Less compares decimals and returns:
+// Equals compares decimals and returns:
 //
-//	 true if d < e
+//	 true if d = e
 //	false otherwise
 //
 // See also method [Decimal.Cmp].
-func (d Decimal) Less(e Decimal) bool {
-	return d.Cmp(e) < 0
+func (d Decimal) Equals(e Decimal) bool {
+	return d.Cmp(e) == 0
+}
+
+// GreaterThan (GT) returns true when d is greater than d2.
+func (d Decimal) GreaterThan(d2 Decimal) bool {
+	return d.Cmp(d2) == 1
+}
+
+// GreaterThanOrEqual (GTE) returns true when d is greater than or equal to d2.
+func (d Decimal) GreaterThanOrEqual(d2 Decimal) bool {
+	cmp := d.Cmp(d2)
+	return cmp == 1 || cmp == 0
+}
+
+// LessThan (LT) returns true when d is less than d2.
+func (d Decimal) LessThan(d2 Decimal) bool {
+	return d.Cmp(d2) == -1
+}
+
+// LessThanOrEqual (LTE) returns true when d is less than or equal to d2.
+func (d Decimal) LessThanOrEqual(d2 Decimal) bool {
+	cmp := d.Cmp(d2)
+	return cmp == -1 || cmp == 0
+}
+
+// IsPositive return
+//
+//	true if d > 0
+//	false if d == 0
+//	false if d < 0
+func (d Decimal) IsPositive() bool {
+	return d.Sign() == 1
+}
+
+// IsNegative return
+//
+//	true if d < 0
+//	false if d == 0
+//	false if d > 0
+func (d Decimal) IsNegative() bool {
+	return d.Sign() == -1
 }
 
 // Cmp compares decimals and returns:
