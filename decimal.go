@@ -755,9 +755,7 @@ func (d *Decimal) UnmarshalJSON(decimalBytes []byte) error {
 
 // MarshalJSON implements the json.Marshaler interface.
 func (d Decimal) MarshalJSON() ([]byte, error) {
-	var str string
-	str = "\"" + d.String() + "\""
-	return []byte(str), nil
+	return []byte(d.String()), nil
 }
 
 // Scan implements the [sql.Scanner] interface.
