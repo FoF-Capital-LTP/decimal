@@ -101,7 +101,7 @@ func TestNew(t *testing.T) {
 				t.Errorf("New(%v, %v) failed: %v", tt.coef, tt.scale, err)
 				continue
 			}
-			want := MustParse(tt.want)
+			want := RequireFromString(tt.want)
 			if got != want {
 				t.Errorf("New(%v, %v) = %q, want %q", tt.coef, tt.scale, got, want)
 			}
@@ -178,7 +178,7 @@ func TestNewFromInt64(t *testing.T) {
 				t.Errorf("NewFromInt64(%v, %v, %v) failed: %v", tt.whole, tt.frac, tt.scale, err)
 				continue
 			}
-			want := MustParse(tt.want)
+			want := RequireFromString(tt.want)
 			if got != want {
 				t.Errorf("NewFromInt64(%v, %v, %v) = %q, want %q", tt.whole, tt.frac, tt.scale, got, want)
 			}
@@ -272,7 +272,7 @@ func TestNewFromFloat64(t *testing.T) {
 				t.Errorf("NewFromFloat64(%v) failed: %v", tt.f, err)
 				continue
 			}
-			want := MustParse(tt.want)
+			want := RequireFromString(tt.want)
 			if got != want {
 				t.Errorf("NewFromFloat64(%v) = %q, want %q", tt.f, got, want)
 			}
@@ -393,21 +393,21 @@ func TestParse(t *testing.T) {
 			{"0.73e-7", false, 73, 9},
 		}
 		for _, tt := range tests {
-			got, err := Parse(tt.s)
+			got, err := NewFromString(tt.s)
 			if err != nil {
-				t.Errorf("Parse(%q) failed: %v", tt.s, err)
+				t.Errorf("NewFromString(%q) failed: %v", tt.s, err)
 				continue
 			}
 			if got.IsNeg() != tt.wantNeg {
-				t.Errorf("Parse(%q).IsNeg() = %v, want %v", tt.s, got.IsNeg(), tt.wantNeg)
+				t.Errorf("NewFromString(%q).IsNeg() = %v, want %v", tt.s, got.IsNeg(), tt.wantNeg)
 				continue
 			}
 			if got.Coef() != tt.wantCoef {
-				t.Errorf("Parse(%q).Coef() = %v, want %v", tt.s, got.Coef(), tt.wantCoef)
+				t.Errorf("NewFromString(%q).Coef() = %v, want %v", tt.s, got.Coef(), tt.wantCoef)
 				continue
 			}
 			if got.Scale() != tt.wantScale {
-				t.Errorf("Parse(%q).Scale() = %v, want %v", tt.s, got.Scale(), tt.wantScale)
+				t.Errorf("NewFromString(%q).Scale() = %v, want %v", tt.s, got.Scale(), tt.wantScale)
 				continue
 			}
 		}
@@ -483,9 +483,9 @@ func TestParse(t *testing.T) {
 		}
 		for name, tt := range tests {
 			t.Run(name, func(t *testing.T) {
-				_, err := ParseExact(tt.s, tt.scale)
+				_, err := NewFromStringExact(tt.s, tt.scale)
 				if err == nil {
-					t.Errorf("ParseExact(%q, %v) did not fail", tt.s, tt.scale)
+					t.Errorf("NewFromStringExact(%q, %v) did not fail", tt.s, tt.scale)
 					return
 				}
 			})
@@ -497,10 +497,10 @@ func TestMustParse(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		defer func() {
 			if r := recover(); r == nil {
-				t.Errorf("MustParse(\".\") did not panic")
+				t.Errorf("RequireFromString(\".\") did not panic")
 			}
 		}()
-		MustParse(".")
+		RequireFromString(".")
 	})
 }
 
@@ -606,7 +606,7 @@ func TestParseBCD(t *testing.T) {
 				t.Errorf("parseBCD(% x) failed: %v", tt.bcd, err)
 				continue
 			}
-			want := MustParse(tt.want)
+			want := RequireFromString(tt.want)
 			if got != want {
 				t.Errorf("parseBCD(% x) = %q, want %q", tt.bcd, got, want)
 			}
@@ -677,14 +677,14 @@ func TestDecimal_BCD(t *testing.T) {
 			{Pi.String(), []byte{0x31, 0x41, 0x59, 0x26, 0x53, 0x58, 0x97, 0x93, 0x23, 0x8c, 0x18}},
 		}
 		for _, tt := range tests {
-			d, err := Parse(tt.d)
+			d, err := NewFromString(tt.d)
 			if err != nil {
-				t.Errorf("Parse(%q) failed: %v", tt.d, err)
+				t.Errorf("NewFromString(%q) failed: %v", tt.d, err)
 				continue
 			}
 			got := d.bcd()
 			if !bytes.Equal(got, tt.want) {
-				t.Errorf("Parse(%q).bcd() = % x, want % x", tt.d, got, tt.want)
+				t.Errorf("NewFromString(%q).bcd() = % x, want % x", tt.d, got, tt.want)
 			}
 		}
 	})
@@ -709,7 +709,7 @@ func TestDecimal_Float64(t *testing.T) {
 		{"-0.0000000000000000001", -0.0000000000000000001, true},
 	}
 	for _, tt := range tests {
-		d := MustParse(tt.d)
+		d := RequireFromString(tt.d)
 		gotFloat, gotOk := d.Float64()
 		if gotFloat != tt.wantFloat || gotOk != tt.wantOk {
 			t.Errorf("%q.Float64() = [%v %v], want [%v %v]", d, gotFloat, gotOk, tt.wantFloat, tt.wantOk)
@@ -827,7 +827,7 @@ func TestDecimal_Int64(t *testing.T) {
 		{"0.1", 20, 0, 0, false},
 	}
 	for _, tt := range tests {
-		d := MustParse(tt.d)
+		d := RequireFromString(tt.d)
 		gotWhole, gotFrac, gotOk := d.Int64(tt.scale)
 		if gotWhole != tt.wantWhole || gotFrac != tt.wantFrac || gotOk != tt.wantOk {
 			t.Errorf("%q.Int64(%v) = [%v %v %v], want [%v %v %v]", d, tt.scale, gotWhole, gotFrac, gotOk, tt.wantWhole, tt.wantFrac, tt.wantOk)
@@ -863,7 +863,7 @@ func TestDecimal_Scan(t *testing.T) {
 				t.Errorf("Scan(1.23456) failed: %v", err)
 				continue
 			}
-			want := MustParse(tt.want)
+			want := RequireFromString(tt.want)
 			if got != want {
 				t.Errorf("Scan(%v) = %v, want %v", tt.f, got, want)
 			}
@@ -886,7 +886,7 @@ func TestDecimal_Scan(t *testing.T) {
 				t.Errorf("Scan(%v) failed: %v", tt.i, err)
 				continue
 			}
-			want := MustParse(tt.want)
+			want := RequireFromString(tt.want)
 			if got != want {
 				t.Errorf("Scan(%v) = %v, want %v", tt.i, got, want)
 			}
@@ -909,7 +909,7 @@ func TestDecimal_Scan(t *testing.T) {
 				t.Errorf("Scan(%v) failed: %v", tt.b, err)
 				continue
 			}
-			want := MustParse(tt.want)
+			want := RequireFromString(tt.want)
 			if got != want {
 				t.Errorf("Scan(%v) = %v, want %v", tt.b, got, want)
 			}
@@ -1055,7 +1055,7 @@ func TestDecimal_Format(t *testing.T) {
 		{"9999999999999999999", "%k", "%!k(PANIC=Format method: formatting percent: computing [9999999999999999999 * 100]: decimal overflow: the integer part of a decimal.Decimal can have at most 19 digits, but it has 21 digits)"},
 	}
 	for _, tt := range tests {
-		d := MustParse(tt.d)
+		d := RequireFromString(tt.d)
 		got := fmt.Sprintf(tt.format, d)
 		if got != tt.want {
 			t.Errorf("fmt.Sprintf(%q, %q) = %q, want %q", tt.format, tt.d, got, tt.want)
@@ -1136,7 +1136,7 @@ func TestDecimal_Prec(t *testing.T) {
 		{"1000000000000000000", 19},
 	}
 	for _, tt := range tests {
-		d := MustParse(tt.d)
+		d := RequireFromString(tt.d)
 		got := d.Prec()
 		if got != tt.want {
 			t.Errorf("%q.Prec() = %v, want %v", tt.d, got, tt.want)
@@ -1233,9 +1233,9 @@ func TestDecimal_Rescale(t *testing.T) {
 		{"0", 20, "0.0000000000000000000"},
 	}
 	for _, tt := range tests {
-		d := MustParse(tt.d)
+		d := RequireFromString(tt.d)
 		got := d.Rescale(tt.scale)
-		want := MustParse(tt.want)
+		want := RequireFromString(tt.want)
 		if got != want {
 			t.Errorf("%q.Rescale(%v) = %q, want %q", d, tt.scale, got, want)
 		}
@@ -1269,10 +1269,10 @@ func TestDecimal_Quantize(t *testing.T) {
 		{"9.9999", "1.00", "10.00"},
 	}
 	for _, tt := range tests {
-		d := MustParse(tt.d)
-		e := MustParse(tt.e)
+		d := RequireFromString(tt.d)
+		e := RequireFromString(tt.e)
 		got := d.Quantize(e)
-		want := MustParse(tt.want)
+		want := RequireFromString(tt.want)
 		if got != want {
 			t.Errorf("%q.Quantize(%q) = %q, want %q", d, e, got, want)
 		}
@@ -1324,9 +1324,9 @@ func TestDecimal_Pad(t *testing.T) {
 		{"-0.0000000000032", 63, "-0.0000000000032000000"},
 	}
 	for _, tt := range tests {
-		d := MustParse(tt.d)
+		d := RequireFromString(tt.d)
 		got := d.Pad(tt.scale)
-		want := MustParse(tt.want)
+		want := RequireFromString(tt.want)
 		if got != want {
 			t.Errorf("%q.Pad(%v) = %q, want %q", d, tt.scale, got, want)
 		}
@@ -1410,9 +1410,9 @@ func TestDecimal_Round(t *testing.T) {
 		{"-1.8", 0, "-2"},
 	}
 	for _, tt := range tests {
-		d := MustParse(tt.d)
+		d := RequireFromString(tt.d)
 		got := d.Round(tt.scale)
-		want := MustParse(tt.want)
+		want := RequireFromString(tt.want)
 		if got != want {
 			t.Errorf("%q.Round(%v) = %q, want %q", d, tt.scale, got, want)
 		}
@@ -1495,9 +1495,9 @@ func TestDecimal_Trunc(t *testing.T) {
 		{"-1.8", 0, "-1"},
 	}
 	for _, tt := range tests {
-		d := MustParse(tt.d)
+		d := RequireFromString(tt.d)
 		got := d.Trunc(tt.scale)
-		want := MustParse(tt.want)
+		want := RequireFromString(tt.want)
 		if got != want {
 			t.Errorf("%q.Trunc(%v) = %q, want %q", d, tt.scale, got, want)
 		}
@@ -1591,9 +1591,9 @@ func TestDecimal_Ceil(t *testing.T) {
 		{"-1.8", 0, "-1"},
 	}
 	for _, tt := range tests {
-		d := MustParse(tt.d)
+		d := RequireFromString(tt.d)
 		got := d.Ceil(tt.scale)
-		want := MustParse(tt.want)
+		want := RequireFromString(tt.want)
 		if got != want {
 			t.Errorf("%q.Ceil(%v) = %q, want %q", d, tt.scale, got, want)
 		}
@@ -1687,9 +1687,9 @@ func TestDecimal_Floor(t *testing.T) {
 		{"-1.8", 0, "-2"},
 	}
 	for _, tt := range tests {
-		d := MustParse(tt.d)
+		d := RequireFromString(tt.d)
 		got := d.Floor(tt.scale)
-		want := MustParse(tt.want)
+		want := RequireFromString(tt.want)
 		if got != want {
 			t.Errorf("%q.Floor(%v) = %q, want %q", d, tt.scale, got, want)
 		}
@@ -1722,7 +1722,7 @@ func TestDecimal_MinScale(t *testing.T) {
 			{"0.9999999999999999999", 19},
 		}
 		for _, tt := range tests {
-			d := MustParse(tt.d)
+			d := RequireFromString(tt.d)
 			got := d.MinScale()
 			if got != tt.want {
 				t.Errorf("%q.MinScale() = %v, want %v", d, got, tt.want)
@@ -1750,9 +1750,9 @@ func TestDecimal_Trim(t *testing.T) {
 		{"-0.0000010", 0, "-0.000001"},
 	}
 	for _, tt := range tests {
-		d := MustParse(tt.d)
+		d := RequireFromString(tt.d)
 		got := d.Trim(tt.scale)
-		want := MustParse(tt.want)
+		want := RequireFromString(tt.want)
 		if got != want {
 			t.Errorf("%q.Trim(%v) = %q, want %q", d, tt.scale, got, want)
 		}
@@ -1821,13 +1821,13 @@ func TestSum(t *testing.T) {
 		for _, tt := range tests {
 			d := make([]Decimal, len(tt.d))
 			for i, s := range tt.d {
-				d[i] = MustParse(s)
+				d[i] = RequireFromString(s)
 			}
 			got, err := Sum(d...)
 			if err != nil {
 				t.Errorf("Sum(%v) failed: %v", d, err)
 			}
-			want := MustParse(tt.want)
+			want := RequireFromString(tt.want)
 			if got != want {
 				t.Errorf("Sum(%v) = %q, want %q", d, got, want)
 			}
@@ -1845,7 +1845,7 @@ func TestSum(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				d := make([]Decimal, len(ss))
 				for i, s := range ss {
-					d[i] = MustParse(s)
+					d[i] = RequireFromString(s)
 				}
 				_, err := Sum(d...)
 				if err == nil {
@@ -1915,14 +1915,14 @@ func TestDecimal_Add(t *testing.T) {
 			{"9999999999999999999", "-1", "9999999999999999998"},
 		}
 		for _, tt := range tests {
-			d := MustParse(tt.d)
-			e := MustParse(tt.e)
+			d := RequireFromString(tt.d)
+			e := RequireFromString(tt.e)
 			got, err := d.Add(e)
 			if err != nil {
 				t.Errorf("%q.Add(%q) failed: %v", d, e, err)
 				continue
 			}
-			want := MustParse(tt.want)
+			want := RequireFromString(tt.want)
 			if got != want {
 				t.Errorf("%q.Add(%q) = %q, want %q", d, e, got, want)
 			}
@@ -1942,8 +1942,8 @@ func TestDecimal_Add(t *testing.T) {
 			"scale 2":    {"0", "0", MaxScale + 1},
 		}
 		for _, tt := range tests {
-			d := MustParse(tt.d)
-			e := MustParse(tt.e)
+			d := RequireFromString(tt.d)
+			e := RequireFromString(tt.e)
 			_, err := d.AddExact(e, tt.scale)
 			if err == nil {
 				t.Errorf("%q.AddExact(%q, %v) did not fail", d, e, tt.scale)
@@ -1968,14 +1968,14 @@ func TestDecimal_Sub(t *testing.T) {
 			{"3", "-5", "8"},
 		}
 		for _, tt := range tests {
-			d := MustParse(tt.d)
-			e := MustParse(tt.e)
+			d := RequireFromString(tt.d)
+			e := RequireFromString(tt.e)
 			got, err := d.Sub(e)
 			if err != nil {
 				t.Errorf("%q.Sub(%q) failed: %v", d, e, err)
 				continue
 			}
-			want := MustParse(tt.want)
+			want := RequireFromString(tt.want)
 			if got != want {
 				t.Errorf("%q.Sub(%q) = %q, want %q", d, e, got, want)
 			}
@@ -1999,14 +1999,14 @@ func TestDecimal_SubAbs(t *testing.T) {
 			{"3", "-5", "8"},
 		}
 		for _, tt := range tests {
-			d := MustParse(tt.d)
-			e := MustParse(tt.e)
+			d := RequireFromString(tt.d)
+			e := RequireFromString(tt.e)
 			got, err := d.SubAbs(e)
 			if err != nil {
 				t.Errorf("%q.SubAbs(%q) failed: %v", d, e, err)
 				continue
 			}
-			want := MustParse(tt.want)
+			want := RequireFromString(tt.want)
 			if got != want {
 				t.Errorf("%q.SubAbs(%q) = %q, want %q", d, e, got, want)
 			}
@@ -2022,8 +2022,8 @@ func TestDecimal_SubAbs(t *testing.T) {
 			"overflow 3": {"9999999999999999999", "-9999999999999999999"},
 		}
 		for _, tt := range tests {
-			d := MustParse(tt.d)
-			e := MustParse(tt.e)
+			d := RequireFromString(tt.d)
+			e := RequireFromString(tt.e)
 			_, err := d.SubAbs(e)
 			if err == nil {
 				t.Errorf("%q.SubAbs(%q) did not fail", d, e)
@@ -2070,13 +2070,13 @@ func TestProd(t *testing.T) {
 		for _, tt := range tests {
 			d := make([]Decimal, len(tt.d))
 			for i, s := range tt.d {
-				d[i] = MustParse(s)
+				d[i] = RequireFromString(s)
 			}
 			got, err := Prod(d...)
 			if err != nil {
 				t.Errorf("Prod(%v) failed: %v", d, err)
 			}
-			want := MustParse(tt.want)
+			want := RequireFromString(tt.want)
 			if got != want {
 				t.Errorf("Prod(%v) = %q, want %q", d, got, want)
 			}
@@ -2093,7 +2093,7 @@ func TestProd(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				d := make([]Decimal, len(ss))
 				for i, s := range ss {
-					d[i] = MustParse(s)
+					d[i] = RequireFromString(s)
 				}
 				_, err := Prod(d...)
 				if err == nil {
@@ -2139,14 +2139,14 @@ func TestDecimal_Mul(t *testing.T) {
 			{"9223372036854775.807", "-0.0000000000000000013", "-0.0119903836479112085"},
 		}
 		for _, tt := range tests {
-			d := MustParse(tt.d)
-			e := MustParse(tt.e)
+			d := RequireFromString(tt.d)
+			e := RequireFromString(tt.e)
 			got, err := d.Mul(e)
 			if err != nil {
 				t.Errorf("%q.Mul(%q) failed: %v", d, e, err)
 				continue
 			}
-			want := MustParse(tt.want)
+			want := RequireFromString(tt.want)
 			if got != want {
 				t.Errorf("%q.Mul(%q) = %q, want %q", d, e, got, want)
 			}
@@ -2165,8 +2165,8 @@ func TestDecimal_Mul(t *testing.T) {
 			"scale 2":    {"0", "0", MaxScale + 1},
 		}
 		for _, tt := range tests {
-			d := MustParse(tt.d)
-			e := MustParse(tt.e)
+			d := RequireFromString(tt.d)
+			e := RequireFromString(tt.e)
 			_, err := d.MulExact(e, tt.scale)
 			if err == nil {
 				t.Errorf("%q.MulExact(%q, %v) did not fail", d, e, tt.scale)
@@ -2282,15 +2282,15 @@ func TestDecimal_AddMul(t *testing.T) {
 		}
 
 		for _, tt := range tests {
-			d := MustParse(tt.d)
-			e := MustParse(tt.e)
-			f := MustParse(tt.f)
+			d := RequireFromString(tt.d)
+			e := RequireFromString(tt.e)
+			f := RequireFromString(tt.f)
 			got, err := d.AddMul(e, f)
 			if err != nil {
 				t.Errorf("%q.AddMul(%q, %q) failed: %v", d, e, f, err)
 				continue
 			}
-			want := MustParse(tt.want)
+			want := RequireFromString(tt.want)
 			if got != want {
 				t.Errorf("%q.AddMul(%q, %q) = %q, want %q", d, e, f, got, want)
 			}
@@ -2312,9 +2312,9 @@ func TestDecimal_AddMul(t *testing.T) {
 			"scale 2":    {"0", "0", "0", MaxScale + 1},
 		}
 		for _, tt := range tests {
-			d := MustParse(tt.d)
-			e := MustParse(tt.e)
-			f := MustParse(tt.f)
+			d := RequireFromString(tt.d)
+			e := RequireFromString(tt.e)
+			f := RequireFromString(tt.f)
 			_, err := d.AddMulExact(e, f, tt.scale)
 			if err == nil {
 				t.Errorf("%q.AddMulExact(%q, %q, %v) did not fail", d, e, f, tt.scale)
@@ -2411,15 +2411,15 @@ func TestDecimal_AddQuo(t *testing.T) {
 		}
 
 		for _, tt := range tests {
-			d := MustParse(tt.d)
-			e := MustParse(tt.e)
-			f := MustParse(tt.f)
+			d := RequireFromString(tt.d)
+			e := RequireFromString(tt.e)
+			f := RequireFromString(tt.f)
 			got, err := d.AddQuo(e, f)
 			if err != nil {
 				t.Errorf("%q.AddQuo(%q, %q) failed: %v", d, e, f, err)
 				continue
 			}
-			want := MustParse(tt.want)
+			want := RequireFromString(tt.want)
 			if got.CmpTotal(want) != 0 {
 				t.Errorf("%q.AddQuo(%q, %q) = %q, want %q", d, e, f, got, want)
 			}
@@ -2442,9 +2442,9 @@ func TestDecimal_AddQuo(t *testing.T) {
 			"scale 2":    {"0", "0", "1", MaxScale + 1},
 		}
 		for _, tt := range tests {
-			d := MustParse(tt.d)
-			e := MustParse(tt.e)
-			f := MustParse(tt.f)
+			d := RequireFromString(tt.d)
+			e := RequireFromString(tt.e)
+			f := RequireFromString(tt.f)
 			_, err := d.AddQuoExact(e, f, tt.scale)
 			if err == nil {
 				t.Errorf("%q.AddQuoExact(%q, %q, %v) did not fail", d, e, f, tt.scale)
@@ -2681,13 +2681,13 @@ func TestDecimal_PowInt(t *testing.T) {
 			{"-0.9223372036854775808", -128, "31197.15320234751783"},
 		}
 		for _, tt := range tests {
-			d := MustParse(tt.d)
+			d := RequireFromString(tt.d)
 			got, err := d.PowInt(tt.power)
 			if err != nil {
 				t.Errorf("%q.PowInt(%d) failed: %v", d, tt.power, err)
 				continue
 			}
-			want := MustParse(tt.want)
+			want := RequireFromString(tt.want)
 			if got != want {
 				t.Errorf("%q.PowInt(%d) = %q, want %q", d, tt.power, got, want)
 			}
@@ -2708,7 +2708,7 @@ func TestDecimal_PowInt(t *testing.T) {
 		}
 		for name, tt := range tests {
 			t.Run(name, func(t *testing.T) {
-				d := MustParse(tt.d)
+				d := RequireFromString(tt.d)
 				_, err := d.PowInt(tt.power)
 				if err == nil {
 					t.Errorf("%q.PowInt(%d) did not fail", d, tt.power)
@@ -2835,13 +2835,13 @@ func TestDecimal_Sqrt(t *testing.T) {
 			{"0.000000272", "0.0005215361924162119"},
 		}
 		for _, tt := range tests {
-			d := MustParse(tt.d)
+			d := RequireFromString(tt.d)
 			got, err := d.Sqrt()
 			if err != nil {
 				t.Errorf("%q.Sqrt() failed: %v", d, err)
 				continue
 			}
-			want := MustParse(tt.want)
+			want := RequireFromString(tt.want)
 			if got != want {
 				t.Errorf("%q.Sqrt() = %q, want %q", d, got, want)
 			}
@@ -2854,7 +2854,7 @@ func TestDecimal_Sqrt(t *testing.T) {
 		}
 		for name, d := range tests {
 			t.Run(name, func(t *testing.T) {
-				d := MustParse(d)
+				d := RequireFromString(d)
 				_, err := d.Sqrt()
 				if err == nil {
 					t.Errorf("%q.Sqrt() did not fail", d)
@@ -3144,13 +3144,13 @@ func TestDecimal_Exp(t *testing.T) {
 			{"-2.999999999999999852", "0.0497870683678639503"},
 		}
 		for _, tt := range tests {
-			d := MustParse(tt.d)
+			d := RequireFromString(tt.d)
 			got, err := d.Exp()
 			if err != nil {
 				t.Errorf("%q.Exp() failed: %v", d, err)
 				continue
 			}
-			want := MustParse(tt.want)
+			want := RequireFromString(tt.want)
 			if got != want {
 				t.Errorf("%q.Exp() = %q, want %q", d, got, want)
 			}
@@ -3164,7 +3164,7 @@ func TestDecimal_Exp(t *testing.T) {
 		}
 		for name, d := range tests {
 			t.Run(name, func(t *testing.T) {
-				d := MustParse(d)
+				d := RequireFromString(d)
 				_, err := d.Exp()
 				if err == nil {
 					t.Errorf("%q.Exp() did not fail", d)
@@ -3311,13 +3311,13 @@ func TestDecimal_Log(t *testing.T) {
 		}
 
 		for _, tt := range tests {
-			d := MustParse(tt.d)
+			d := RequireFromString(tt.d)
 			got, err := d.Log()
 			if err != nil {
 				t.Errorf("%q.Log() failed: %v", d, err)
 				continue
 			}
-			want := MustParse(tt.want)
+			want := RequireFromString(tt.want)
 			if got != want {
 				t.Errorf("%q.Log() = %q, want %q", d, got, want)
 			}
@@ -3331,7 +3331,7 @@ func TestDecimal_Log(t *testing.T) {
 		}
 		for name, d := range tests {
 			t.Run(name, func(t *testing.T) {
-				d := MustParse(d)
+				d := RequireFromString(d)
 				_, err := d.Log()
 				if err == nil {
 					t.Errorf("%q.Log() did not fail", d)
@@ -3354,9 +3354,9 @@ func TestDecimal_Abs(t *testing.T) {
 		{"0.00", "0.00"},
 	}
 	for _, tt := range tests {
-		d := MustParse(tt.d)
+		d := RequireFromString(tt.d)
 		got := d.Abs()
-		want := MustParse(tt.want)
+		want := RequireFromString(tt.want)
 		if got != want {
 			t.Errorf("%q.Abs() = %q, want %q", d, got, want)
 		}
@@ -3378,10 +3378,10 @@ func TestDecimal_CopySign(t *testing.T) {
 		{"-10", "-1", "-10"},
 	}
 	for _, tt := range tests {
-		d := MustParse(tt.d)
-		e := MustParse(tt.e)
+		d := RequireFromString(tt.d)
+		e := RequireFromString(tt.e)
 		got := d.CopySign(e)
-		want := MustParse(tt.want)
+		want := RequireFromString(tt.want)
 		if got != want {
 			t.Errorf("%q.CopySign(%q) = %q, want %q", d, e, got, want)
 		}
@@ -3401,9 +3401,9 @@ func TestDecimal_Neg(t *testing.T) {
 		{"0.00", "0.00"},
 	}
 	for _, tt := range tests {
-		d := MustParse(tt.d)
+		d := RequireFromString(tt.d)
 		got := d.Neg()
-		want := MustParse(tt.want)
+		want := RequireFromString(tt.want)
 		if got != want {
 			t.Errorf("%q.Neg() = %q, want %q", d, got, want)
 		}
@@ -3520,14 +3520,14 @@ func TestDecimal_Quo(t *testing.T) {
 			{"1.000000000000000049", "-99.9999999999999924", "-0.0100000000000000013"},
 		}
 		for _, tt := range tests {
-			d := MustParse(tt.d)
-			e := MustParse(tt.e)
+			d := RequireFromString(tt.d)
+			e := RequireFromString(tt.e)
 			got, err := d.Quo(e)
 			if err != nil {
 				t.Errorf("%q.Quo(%q) failed: %v", d, e, err)
 				continue
 			}
-			want := MustParse(tt.want)
+			want := RequireFromString(tt.want)
 			if got != want {
 				t.Errorf("%q.Quo(%q) = %q, want %q", d, e, got, want)
 			}
@@ -3545,8 +3545,8 @@ func TestDecimal_Quo(t *testing.T) {
 			"scale 2":    {"0", "1", MaxScale + 1},
 		}
 		for _, tt := range tests {
-			d := MustParse(tt.d)
-			e := MustParse(tt.e)
+			d := RequireFromString(tt.d)
+			e := RequireFromString(tt.e)
 			_, err := d.QuoExact(e, tt.scale)
 			if err == nil {
 				t.Errorf("%q.QuoExact(%q, %v) did not fail", d, e, tt.scale)
@@ -3568,13 +3568,13 @@ func TestDecimal_Inv(t *testing.T) {
 			{"2.00", "0.5"},
 		}
 		for _, tt := range tests {
-			d := MustParse(tt.d)
+			d := RequireFromString(tt.d)
 			got, err := d.Inv()
 			if err != nil {
 				t.Errorf("%q.Inv() failed: %v", d, err)
 				continue
 			}
-			want := MustParse(tt.want)
+			want := RequireFromString(tt.want)
 			if got != want {
 				t.Errorf("%q.Inv() = %q, want %q", d, got, want)
 			}
@@ -3589,7 +3589,7 @@ func TestDecimal_Inv(t *testing.T) {
 			"overflow 1": {"0.0000000000000000001"},
 		}
 		for _, tt := range tests {
-			d := MustParse(tt.d)
+			d := RequireFromString(tt.d)
 			_, err := d.Inv()
 			if err == nil {
 				t.Errorf("%q.Inv() did not fail", d)
@@ -3684,15 +3684,15 @@ func TestDecimal_QuoRem(t *testing.T) {
 			{"0.9999999999999999999", "3", "0", "0.9999999999999999999"},
 		}
 		for _, tt := range tests {
-			d := MustParse(tt.d)
-			e := MustParse(tt.e)
+			d := RequireFromString(tt.d)
+			e := RequireFromString(tt.e)
 			gotQuo, gotRem, err := d.QuoRem(e)
 			if err != nil {
 				t.Errorf("%q.QuoRem(%q) failed: %v", d, e, err)
 				continue
 			}
-			wantQuo := MustParse(tt.wantQuo)
-			wantRem := MustParse(tt.wantRem)
+			wantQuo := RequireFromString(tt.wantQuo)
+			wantRem := RequireFromString(tt.wantRem)
 			if gotQuo != wantQuo || gotRem != wantRem {
 				t.Errorf("%q.QuoRem(%q) = (%q, %q), want (%q, %q)", d, e, gotQuo, gotRem, wantQuo, wantRem)
 			}
@@ -3707,8 +3707,8 @@ func TestDecimal_QuoRem(t *testing.T) {
 			"overflow 1": {"9999999999999999999", "0.0000000000000000001"},
 		}
 		for _, tt := range tests {
-			d := MustParse(tt.d)
-			e := MustParse(tt.e)
+			d := RequireFromString(tt.d)
+			e := RequireFromString(tt.e)
 			_, _, err := d.QuoRem(e)
 			if err == nil {
 				t.Errorf("%q.QuoRem(%q) did not fail", d, e)
@@ -3759,8 +3759,8 @@ func TestDecimal_Cmp(t *testing.T) {
 		{"0.9999999999999999999", "9999999999999999999", -1},
 	}
 	for _, tt := range tests {
-		d := MustParse(tt.d)
-		e := MustParse(tt.e)
+		d := RequireFromString(tt.d)
+		e := RequireFromString(tt.e)
 		got := d.Cmp(e)
 		if got != tt.want {
 			t.Errorf("%q.Cmp(%q) = %v, want %v", d, e, got, tt.want)
@@ -3807,10 +3807,10 @@ func TestDecimal_Max(t *testing.T) {
 		{"-1.2300", "-1.23", "-1.23"},
 	}
 	for _, tt := range tests {
-		d := MustParse(tt.d)
-		e := MustParse(tt.e)
+		d := RequireFromString(tt.d)
+		e := RequireFromString(tt.e)
 		got := d.Max(e)
-		want := MustParse(tt.want)
+		want := RequireFromString(tt.want)
 		if got != want {
 			t.Errorf("%q.Max(%q) = %q, want %q", d, e, got, want)
 		}
@@ -3856,10 +3856,10 @@ func TestDecimal_Min(t *testing.T) {
 		{"-1.2300", "-1.23", "-1.2300"},
 	}
 	for _, tt := range tests {
-		d := MustParse(tt.d)
-		e := MustParse(tt.e)
+		d := RequireFromString(tt.d)
+		e := RequireFromString(tt.e)
 		got := d.Min(e)
-		want := MustParse(tt.want)
+		want := RequireFromString(tt.want)
 		if got != want {
 			t.Errorf("%q.Min(%q) = %q, want %q", d, e, got, want)
 		}
@@ -3897,15 +3897,15 @@ func TestDecimal_Clamp(t *testing.T) {
 			{"1.23", "1", "1.23", "1.23"},
 		}
 		for _, tt := range tests {
-			d := MustParse(tt.d)
-			min := MustParse(tt.min)
-			max := MustParse(tt.max)
+			d := RequireFromString(tt.d)
+			min := RequireFromString(tt.min)
+			max := RequireFromString(tt.max)
 			got, err := d.Clamp(min, max)
 			if err != nil {
 				t.Errorf("%q.Clamp(%q, %q) failed: %v", d, min, max, err)
 				continue
 			}
-			want := MustParse(tt.want)
+			want := RequireFromString(tt.want)
 			if got != want {
 				t.Errorf("%q.Clamp(%q, %q) = %q, want %q", d, min, max, got, want)
 			}
@@ -3919,9 +3919,9 @@ func TestDecimal_Clamp(t *testing.T) {
 			{"0", "1", "-1"},
 		}
 		for _, tt := range tests {
-			d := MustParse(tt.d)
-			min := MustParse(tt.min)
-			max := MustParse(tt.max)
+			d := RequireFromString(tt.d)
+			min := RequireFromString(tt.min)
+			max := RequireFromString(tt.max)
 			_, err := d.Clamp(min, max)
 			if err == nil {
 				t.Errorf("%q.Clamp(%q, %q) did not fail", d, min, max)
@@ -4051,14 +4051,14 @@ func FuzzDecimal_String_Parse(f *testing.F) {
 			}
 
 			s := want.String()
-			got, err := Parse(s)
+			got, err := NewFromString(s)
 			if err != nil {
-				t.Errorf("Parse(%q) failed: %v", s, err)
+				t.Errorf("NewFromString(%q) failed: %v", s, err)
 				return
 			}
 
 			if got.CmpTotal(want) != 0 {
-				t.Errorf("Parse(%q) = %v, want %v", s, got, want)
+				t.Errorf("NewFromString(%q) = %v, want %v", s, got, want)
 				return
 			}
 		},

@@ -212,7 +212,7 @@ C. Protocol Buffers
 Protocol Buffers provide two formats to represent decimals.
 The first format represents decimals as [numerical strings].
 The main advantage of this format is that it preserves trailing zeros.
-To convert between this format and decimals, use [Parse] and [Decimal.String].
+To convert between this format and decimals, use [NewFromString] and [Decimal.String].
 Below is an example of a proto definition:
 
 	message Decimal {

@@ -208,7 +208,7 @@ func NewFromFloat64(f float64) (Decimal, error) {
 	}
 	s := strconv.FormatFloat(f, 'f', -1, 64)
 	// Decimal
-	d, err := Parse(s)
+	d, err := NewFromString(s)
 	if err != nil {
 		return Decimal{}, fmt.Errorf("converting float: %w", err)
 	}
@@ -235,7 +235,7 @@ func (d Decimal) ULP() Decimal {
 	return newUnsafe(false, 1, d.Scale())
 }
 
-// Parse converts a string to a (possibly rounded) decimal.
+// NewFromString converts a string to a (possibly rounded) decimal.
 // The input string must be in one of the following formats:
 //
 //	1.234
@@ -252,25 +252,25 @@ func (d Decimal) ULP() Decimal {
 //	exponent       ::= ('e' | 'E') [sign] digits
 //	numeric-string ::= [sign] significand [exponent]
 //
-// Parse removes leading zeros from the integer part of the input string,
+// NewFromString removes leading zeros from the integer part of the input string,
 // but tries to maintain trailing zeros in the fractional part to preserve scale.
 //
-// Parse returns an error if:
+// NewFromString returns an error if:
 //   - the string contains any whitespaces;
 //   - the string is longer than 330 bytes;
 //   - the exponent is less than -330 or greater than 330;
 //   - the string does not represent a valid decimal number;
 //   - the integer part of the result has more than [MaxPrec] digits.
-func Parse(s string) (Decimal, error) {
-	return ParseExact(s, 0)
+func NewFromString(s string) (Decimal, error) {
+	return NewFromStringExact(s, 0)
 }
 
-// ParseExact is similar to [Parse], but it allows you to specify how many digits
+// NewFromStringExact is similar to [NewFromString], but it allows you to specify how many digits
 // after the decimal point should be considered significant.
 // If any of the significant digits are lost during rounding, the method will return an error.
 // This method is useful for parsing monetary amounts, where the scale should be
 // equal to or greater than the currency's scale.
-func ParseExact(s string, scale int) (Decimal, error) {
+func NewFromStringExact(s string, scale int) (Decimal, error) {
 	if len(s) > 330 {
 		return Decimal{}, fmt.Errorf("parsing decimal: %w", errInvalidDecimal)
 	}
@@ -462,12 +462,12 @@ func parseBint(s string, minScale int) (Decimal, error) {
 	return newFromBint(neg, bcoef, scale, minScale)
 }
 
-// MustParse is like [Parse] but panics if the string cannot be parsed.
+// RequireFromString is like [NewFromString] but panics if the string cannot be parsed.
 // It simplifies safe initialization of global variables holding decimals.
-func MustParse(s string) Decimal {
-	d, err := Parse(s)
+func RequireFromString(s string) Decimal {
+	d, err := NewFromString(s)
 	if err != nil {
-		panic(fmt.Sprintf("Parse(%q) failed: %v", s, err))
+		panic(fmt.Sprintf("NewFromString(%q) failed: %v", s, err))
 	}
 	return d
 }
@@ -693,12 +693,12 @@ func (d Decimal) Int64(scale int) (whole, frac int64, ok bool) {
 }
 
 // UnmarshalText implements the [encoding.TextUnmarshaler] interface.
-// See also constructor [Parse].
+// See also constructor [NewFromString].
 //
 // [encoding.TextUnmarshaler]: https://pkg.go.dev/encoding#TextUnmarshaler
 func (d *Decimal) UnmarshalText(text []byte) error {
 	var err error
-	*d, err = Parse(string(text))
+	*d, err = NewFromString(string(text))
 	return err
 }
 
@@ -745,7 +745,7 @@ func (d *Decimal) UnmarshalJSON(decimalBytes []byte) error {
 		return fmt.Errorf("error decoding string '%s': %s", decimalBytes, err)
 	}
 
-	decimal, err := Parse(str)
+	decimal, err := NewFromString(str)
 	*d = decimal
 	if err != nil {
 		return fmt.Errorf("error decoding string '%s': %s", str, err)
@@ -759,16 +759,16 @@ func (d Decimal) MarshalJSON() ([]byte, error) {
 }
 
 // Scan implements the [sql.Scanner] interface.
-// See also constructor [Parse].
+// See also constructor [NewFromString].
 //
 // [sql.Scanner]: https://pkg.go.dev/database/sql#Scanner
 func (d *Decimal) Scan(value any) error {
 	var err error
 	switch value := value.(type) {
 	case string:
-		*d, err = Parse(value)
+		*d, err = NewFromString(value)
 	case []byte:
-		*d, err = Parse(string(value))
+		*d, err = NewFromString(string(value))
 	case int64:
 		*d, err = New(value, 0)
 	case float64:
@@ -2882,7 +2882,7 @@ type NullDecimal struct {
 }
 
 // Scan implements the [sql.Scanner] interface.
-// See also constructor [Parse].
+// See also constructor [NewFromString].
 //
 // [sql.Scanner]: https://pkg.go.dev/database/sql#Scanner
 func (n *NullDecimal) Scan(value any) error {

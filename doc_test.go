@@ -49,7 +49,7 @@ func evaluate(input string) (decimal.Decimal, error) {
 				result, err = left.Quo(right)
 			}
 		} else {
-			result, err = decimal.Parse(token)
+			result, err = decimal.NewFromString(token)
 		}
 		if err != nil {
 			return decimal.Decimal{}, fmt.Errorf("processing token %q at position %v: %w", token, i, err)
@@ -81,7 +81,7 @@ func approximate(terms int) (decimal.Decimal, error) {
 	pi := decimal.Zero
 	denominator := decimal.One
 	increment := decimal.Two
-	multiplier := decimal.MustParse("4")
+	multiplier := decimal.RequireFromString("4")
 
 	var err error
 	for range terms {
@@ -103,8 +103,8 @@ func approximate(terms int) (decimal.Decimal, error) {
 // In decimal arithmetic, the result is exactly 0.3, as expected.
 // In float64 arithmetic, the result is 0.30000000000000004 due to floating-point inaccuracy.
 func Example_floatInaccuracy() {
-	a := decimal.MustParse("0.1")
-	b := decimal.MustParse("0.2")
+	a := decimal.RequireFromString("0.1")
+	b := decimal.RequireFromString("0.2")
 	fmt.Println(a.Add(b))
 
 	x := 0.1
@@ -116,17 +116,17 @@ func Example_floatInaccuracy() {
 }
 
 func ExampleSum() {
-	d := decimal.MustParse("5.67")
-	e := decimal.MustParse("-8")
-	f := decimal.MustParse("23")
+	d := decimal.RequireFromString("5.67")
+	e := decimal.RequireFromString("-8")
+	f := decimal.RequireFromString("23")
 	fmt.Println(decimal.Sum(d, e, f))
 	// Output: 20.67 <nil>
 }
 
 func ExampleProd() {
-	d := decimal.MustParse("5.67")
-	e := decimal.MustParse("-8")
-	f := decimal.MustParse("23")
+	d := decimal.RequireFromString("5.67")
+	e := decimal.RequireFromString("-8")
+	f := decimal.RequireFromString("23")
 	fmt.Println(decimal.Prod(d, e, f))
 	// Output: -1043.28 <nil>
 }
@@ -188,9 +188,9 @@ func ExampleNewFromFloat64() {
 }
 
 func ExampleDecimal_Zero() {
-	d := decimal.MustParse("5")
-	e := decimal.MustParse("5.6")
-	f := decimal.MustParse("5.67")
+	d := decimal.RequireFromString("5")
+	e := decimal.RequireFromString("5.6")
+	f := decimal.RequireFromString("5.67")
 	fmt.Println(d.Zero())
 	fmt.Println(e.Zero())
 	fmt.Println(f.Zero())
@@ -201,9 +201,9 @@ func ExampleDecimal_Zero() {
 }
 
 func ExampleDecimal_One() {
-	d := decimal.MustParse("5")
-	e := decimal.MustParse("5.6")
-	f := decimal.MustParse("5.67")
+	d := decimal.RequireFromString("5")
+	e := decimal.RequireFromString("5.6")
+	f := decimal.RequireFromString("5.67")
 	fmt.Println(d.One())
 	fmt.Println(e.One())
 	fmt.Println(f.One())
@@ -214,9 +214,9 @@ func ExampleDecimal_One() {
 }
 
 func ExampleDecimal_ULP() {
-	d := decimal.MustParse("5")
-	e := decimal.MustParse("5.6")
-	f := decimal.MustParse("5.67")
+	d := decimal.RequireFromString("5")
+	e := decimal.RequireFromString("5.6")
+	f := decimal.RequireFromString("5.67")
 	fmt.Println(d.ULP())
 	fmt.Println(e.ULP())
 	fmt.Println(f.ULP())
@@ -227,16 +227,16 @@ func ExampleDecimal_ULP() {
 }
 
 func ExampleParse() {
-	fmt.Println(decimal.Parse("5.67"))
+	fmt.Println(decimal.NewFromString("5.67"))
 	// Output: 5.67 <nil>
 }
 
 func ExampleParseExact() {
-	fmt.Println(decimal.ParseExact("5.67", 0))
-	fmt.Println(decimal.ParseExact("5.67", 1))
-	fmt.Println(decimal.ParseExact("5.67", 2))
-	fmt.Println(decimal.ParseExact("5.67", 3))
-	fmt.Println(decimal.ParseExact("5.67", 4))
+	fmt.Println(decimal.NewFromStringExact("5.67", 0))
+	fmt.Println(decimal.NewFromStringExact("5.67", 1))
+	fmt.Println(decimal.NewFromStringExact("5.67", 2))
+	fmt.Println(decimal.NewFromStringExact("5.67", 3))
+	fmt.Println(decimal.NewFromStringExact("5.67", 4))
 	// Output:
 	// 5.67 <nil>
 	// 5.67 <nil>
@@ -246,12 +246,12 @@ func ExampleParseExact() {
 }
 
 func ExampleMustParse() {
-	fmt.Println(decimal.MustParse("-1.23"))
+	fmt.Println(decimal.RequireFromString("-1.23"))
 	// Output: -1.23
 }
 
 func ExampleDecimal_String() {
-	d := decimal.MustParse("1234567890.123456789")
+	d := decimal.RequireFromString("1234567890.123456789")
 	fmt.Println(d.String())
 	// Output: 1234567890.123456789
 }
@@ -263,7 +263,7 @@ func unmarshalBytes(b []byte) (decimal.Decimal, error) {
 }
 
 func marshalBytes(s string) ([]byte, error) {
-	d, err := decimal.Parse(s)
+	d, err := decimal.NewFromString(s)
 	if err != nil {
 		return nil, err
 	}
@@ -288,9 +288,9 @@ func ExampleDecimal_MarshalBinary() {
 }
 
 func ExampleDecimal_Float64() {
-	d := decimal.MustParse("0.1")
-	e := decimal.MustParse("123.456")
-	f := decimal.MustParse("1234567890.123456789")
+	d := decimal.RequireFromString("0.1")
+	e := decimal.RequireFromString("123.456")
+	f := decimal.RequireFromString("1234567890.123456789")
 	fmt.Println(d.Float64())
 	fmt.Println(e.Float64())
 	fmt.Println(f.Float64())
@@ -301,7 +301,7 @@ func ExampleDecimal_Float64() {
 }
 
 func ExampleDecimal_Int64() {
-	d := decimal.MustParse("5.67")
+	d := decimal.RequireFromString("5.67")
 	fmt.Println(d.Int64(0))
 	fmt.Println(d.Int64(1))
 	fmt.Println(d.Int64(2))
@@ -329,7 +329,7 @@ func unmarshalJSON(s string) (Object, error) {
 }
 
 func marshalJSON(s string) (string, error) {
-	d, err := decimal.Parse(s)
+	d, err := decimal.NewFromString(s)
 	if err != nil {
 		return "", err
 	}
@@ -376,7 +376,7 @@ func unmarshalXML(s string) (Entity, error) {
 }
 
 func marshalXML(s string) (string, error) {
-	d, err := decimal.Parse(s)
+	d, err := decimal.NewFromString(s)
 	if err != nil {
 		return "", err
 	}
@@ -420,13 +420,13 @@ func ExampleDecimal_Scan() {
 }
 
 func ExampleDecimal_Value() {
-	d := decimal.MustParse("5.67")
+	d := decimal.RequireFromString("5.67")
 	fmt.Println(d.Value())
 	// Output: 5.67 <nil>
 }
 
 func ExampleDecimal_Format() {
-	d := decimal.MustParse("5.67")
+	d := decimal.RequireFromString("5.67")
 	fmt.Printf("%f\n", d)
 	fmt.Printf("%k\n", d)
 	// Output:
@@ -435,9 +435,9 @@ func ExampleDecimal_Format() {
 }
 
 func ExampleDecimal_Coef() {
-	d := decimal.MustParse("-123")
-	e := decimal.MustParse("5.7")
-	f := decimal.MustParse("0.4")
+	d := decimal.RequireFromString("-123")
+	e := decimal.RequireFromString("5.7")
+	f := decimal.RequireFromString("0.4")
 	fmt.Println(d.Coef())
 	fmt.Println(e.Coef())
 	fmt.Println(f.Coef())
@@ -448,9 +448,9 @@ func ExampleDecimal_Coef() {
 }
 
 func ExampleDecimal_Prec() {
-	d := decimal.MustParse("-123")
-	e := decimal.MustParse("5.7")
-	f := decimal.MustParse("0.4")
+	d := decimal.RequireFromString("-123")
+	e := decimal.RequireFromString("5.7")
+	f := decimal.RequireFromString("0.4")
 	fmt.Println(d.Prec())
 	fmt.Println(e.Prec())
 	fmt.Println(f.Prec())
@@ -461,15 +461,15 @@ func ExampleDecimal_Prec() {
 }
 
 func ExampleDecimal_Mul() {
-	d := decimal.MustParse("5.7")
-	e := decimal.MustParse("3")
+	d := decimal.RequireFromString("5.7")
+	e := decimal.RequireFromString("3")
 	fmt.Println(d.Mul(e))
 	// Output: 17.1 <nil>
 }
 
 func ExampleDecimal_MulExact() {
-	d := decimal.MustParse("5.7")
-	e := decimal.MustParse("3")
+	d := decimal.RequireFromString("5.7")
+	e := decimal.RequireFromString("3")
 	fmt.Println(d.MulExact(e, 0))
 	fmt.Println(d.MulExact(e, 1))
 	fmt.Println(d.MulExact(e, 2))
@@ -484,17 +484,17 @@ func ExampleDecimal_MulExact() {
 }
 
 func ExampleDecimal_SubMul() {
-	d := decimal.MustParse("2")
-	e := decimal.MustParse("3")
-	f := decimal.MustParse("4")
+	d := decimal.RequireFromString("2")
+	e := decimal.RequireFromString("3")
+	f := decimal.RequireFromString("4")
 	fmt.Println(d.SubMul(e, f))
 	// Output: -10 <nil>
 }
 
 func ExampleDecimal_SubMulExact() {
-	d := decimal.MustParse("2")
-	e := decimal.MustParse("3")
-	f := decimal.MustParse("4")
+	d := decimal.RequireFromString("2")
+	e := decimal.RequireFromString("3")
+	f := decimal.RequireFromString("4")
 	fmt.Println(d.SubMulExact(e, f, 0))
 	fmt.Println(d.SubMulExact(e, f, 1))
 	fmt.Println(d.SubMulExact(e, f, 2))
@@ -509,17 +509,17 @@ func ExampleDecimal_SubMulExact() {
 }
 
 func ExampleDecimal_AddMul() {
-	d := decimal.MustParse("2")
-	e := decimal.MustParse("3")
-	f := decimal.MustParse("4")
+	d := decimal.RequireFromString("2")
+	e := decimal.RequireFromString("3")
+	f := decimal.RequireFromString("4")
 	fmt.Println(d.AddMul(e, f))
 	// Output: 14 <nil>
 }
 
 func ExampleDecimal_AddMulExact() {
-	d := decimal.MustParse("2")
-	e := decimal.MustParse("3")
-	f := decimal.MustParse("4")
+	d := decimal.RequireFromString("2")
+	e := decimal.RequireFromString("3")
+	f := decimal.RequireFromString("4")
 	fmt.Println(d.AddMulExact(e, f, 0))
 	fmt.Println(d.AddMulExact(e, f, 1))
 	fmt.Println(d.AddMulExact(e, f, 2))
@@ -534,17 +534,17 @@ func ExampleDecimal_AddMulExact() {
 }
 
 func ExampleDecimal_SubQuo() {
-	d := decimal.MustParse("2")
-	e := decimal.MustParse("3")
-	f := decimal.MustParse("4")
+	d := decimal.RequireFromString("2")
+	e := decimal.RequireFromString("3")
+	f := decimal.RequireFromString("4")
 	fmt.Println(d.SubQuo(e, f))
 	// Output: 1.25 <nil>
 }
 
 func ExampleDecimal_SubQuoExact() {
-	d := decimal.MustParse("2")
-	e := decimal.MustParse("3")
-	f := decimal.MustParse("4")
+	d := decimal.RequireFromString("2")
+	e := decimal.RequireFromString("3")
+	f := decimal.RequireFromString("4")
 	fmt.Println(d.SubQuoExact(e, f, 0))
 	fmt.Println(d.SubQuoExact(e, f, 1))
 	fmt.Println(d.SubQuoExact(e, f, 2))
@@ -559,17 +559,17 @@ func ExampleDecimal_SubQuoExact() {
 }
 
 func ExampleDecimal_AddQuo() {
-	d := decimal.MustParse("2")
-	e := decimal.MustParse("3")
-	f := decimal.MustParse("4")
+	d := decimal.RequireFromString("2")
+	e := decimal.RequireFromString("3")
+	f := decimal.RequireFromString("4")
 	fmt.Println(d.AddQuo(e, f))
 	// Output: 2.75 <nil>
 }
 
 func ExampleDecimal_AddQuoExact() {
-	d := decimal.MustParse("2")
-	e := decimal.MustParse("3")
-	f := decimal.MustParse("4")
+	d := decimal.RequireFromString("2")
+	e := decimal.RequireFromString("3")
+	f := decimal.RequireFromString("4")
 	fmt.Println(d.AddQuoExact(e, f, 0))
 	fmt.Println(d.AddQuoExact(e, f, 1))
 	fmt.Println(d.AddQuoExact(e, f, 2))
@@ -584,7 +584,7 @@ func ExampleDecimal_AddQuoExact() {
 }
 
 func ExampleDecimal_PowInt() {
-	d := decimal.MustParse("2")
+	d := decimal.RequireFromString("2")
 	fmt.Println(d.PowInt(-2))
 	fmt.Println(d.PowInt(-1))
 	fmt.Println(d.PowInt(0))
@@ -599,10 +599,10 @@ func ExampleDecimal_PowInt() {
 }
 
 func ExampleDecimal_Sqrt() {
-	d := decimal.MustParse("1")
-	e := decimal.MustParse("2")
-	f := decimal.MustParse("3")
-	g := decimal.MustParse("4")
+	d := decimal.RequireFromString("1")
+	e := decimal.RequireFromString("2")
+	f := decimal.RequireFromString("3")
+	g := decimal.RequireFromString("4")
 	fmt.Println(d.Sqrt())
 	fmt.Println(e.Sqrt())
 	fmt.Println(f.Sqrt())
@@ -615,9 +615,9 @@ func ExampleDecimal_Sqrt() {
 }
 
 func ExampleDecimal_Exp() {
-	d := decimal.MustParse("-2.302585092994045684")
-	e := decimal.MustParse("0")
-	f := decimal.MustParse("2.302585092994045684")
+	d := decimal.RequireFromString("-2.302585092994045684")
+	e := decimal.RequireFromString("0")
+	f := decimal.RequireFromString("2.302585092994045684")
 	fmt.Println(d.Exp())
 	fmt.Println(e.Exp())
 	fmt.Println(f.Exp())
@@ -628,9 +628,9 @@ func ExampleDecimal_Exp() {
 }
 
 func ExampleDecimal_Log() {
-	d := decimal.MustParse("1")
-	e := decimal.MustParse("2.718281828459045236")
-	f := decimal.MustParse("10")
+	d := decimal.RequireFromString("1")
+	e := decimal.RequireFromString("2.718281828459045236")
+	f := decimal.RequireFromString("10")
 	fmt.Println(d.Log())
 	fmt.Println(e.Log())
 	fmt.Println(f.Log())
@@ -641,15 +641,15 @@ func ExampleDecimal_Log() {
 }
 
 func ExampleDecimal_Add() {
-	d := decimal.MustParse("5.67")
-	e := decimal.MustParse("8")
+	d := decimal.RequireFromString("5.67")
+	e := decimal.RequireFromString("8")
 	fmt.Println(d.Add(e))
 	// Output: 13.67 <nil>
 }
 
 func ExampleDecimal_AddExact() {
-	d := decimal.MustParse("5.67")
-	e := decimal.MustParse("8")
+	d := decimal.RequireFromString("5.67")
+	e := decimal.RequireFromString("8")
 	fmt.Println(d.AddExact(e, 0))
 	fmt.Println(d.AddExact(e, 1))
 	fmt.Println(d.AddExact(e, 2))
@@ -664,22 +664,22 @@ func ExampleDecimal_AddExact() {
 }
 
 func ExampleDecimal_Sub() {
-	d := decimal.MustParse("-5.67")
-	e := decimal.MustParse("8")
+	d := decimal.RequireFromString("-5.67")
+	e := decimal.RequireFromString("8")
 	fmt.Println(d.Sub(e))
 	// Output: -13.67 <nil>
 }
 
 func ExampleDecimal_SubAbs() {
-	d := decimal.MustParse("-5.67")
-	e := decimal.MustParse("8")
+	d := decimal.RequireFromString("-5.67")
+	e := decimal.RequireFromString("8")
 	fmt.Println(d.SubAbs(e))
 	// Output: 13.67 <nil>
 }
 
 func ExampleDecimal_SubExact() {
-	d := decimal.MustParse("8")
-	e := decimal.MustParse("5.67")
+	d := decimal.RequireFromString("8")
+	e := decimal.RequireFromString("5.67")
 	fmt.Println(d.SubExact(e, 0))
 	fmt.Println(d.SubExact(e, 1))
 	fmt.Println(d.SubExact(e, 2))
@@ -694,15 +694,15 @@ func ExampleDecimal_SubExact() {
 }
 
 func ExampleDecimal_Quo() {
-	d := decimal.MustParse("5.67")
-	e := decimal.MustParse("2")
+	d := decimal.RequireFromString("5.67")
+	e := decimal.RequireFromString("2")
 	fmt.Println(d.Quo(e))
 	// Output: 2.835 <nil>
 }
 
 func ExampleDecimal_QuoExact() {
-	d := decimal.MustParse("5.66")
-	e := decimal.MustParse("2")
+	d := decimal.RequireFromString("5.66")
+	e := decimal.RequireFromString("2")
 	fmt.Println(d.QuoExact(e, 0))
 	fmt.Println(d.QuoExact(e, 1))
 	fmt.Println(d.QuoExact(e, 2))
@@ -717,21 +717,21 @@ func ExampleDecimal_QuoExact() {
 }
 
 func ExampleDecimal_QuoRem() {
-	d := decimal.MustParse("5.67")
-	e := decimal.MustParse("2")
+	d := decimal.RequireFromString("5.67")
+	e := decimal.RequireFromString("2")
 	fmt.Println(d.QuoRem(e))
 	// Output: 2 1.67 <nil>
 }
 
 func ExampleDecimal_Inv() {
-	d := decimal.MustParse("2")
+	d := decimal.RequireFromString("2")
 	fmt.Println(d.Inv())
 	// Output: 0.5 <nil>
 }
 
 func ExampleDecimal_Less() {
-	d := decimal.MustParse("-23")
-	e := decimal.MustParse("5.67")
+	d := decimal.RequireFromString("-23")
+	e := decimal.RequireFromString("5.67")
 	fmt.Println(d.Less(e))
 	fmt.Println(e.Less(d))
 	// Output:
@@ -740,8 +740,8 @@ func ExampleDecimal_Less() {
 }
 
 func ExampleDecimal_Equal() {
-	d := decimal.MustParse("-23")
-	e := decimal.MustParse("5.67")
+	d := decimal.RequireFromString("-23")
+	e := decimal.RequireFromString("5.67")
 	fmt.Println(d.Equal(e))
 	fmt.Println(d.Equal(d))
 	// Output:
@@ -751,9 +751,9 @@ func ExampleDecimal_Equal() {
 
 func ExampleDecimal_Equal_slices() {
 	s := []decimal.Decimal{
-		decimal.MustParse("-5.67"),
-		decimal.MustParse("0"),
-		decimal.MustParse("0"),
+		decimal.RequireFromString("-5.67"),
+		decimal.RequireFromString("0"),
+		decimal.RequireFromString("0"),
 	}
 	fmt.Println(slices.EqualFunc(s, s, decimal.Decimal.Equal))
 	fmt.Println(slices.CompactFunc(s, decimal.Decimal.Equal))
@@ -763,8 +763,8 @@ func ExampleDecimal_Equal_slices() {
 }
 
 func ExampleDecimal_Cmp() {
-	d := decimal.MustParse("-23")
-	e := decimal.MustParse("5.67")
+	d := decimal.RequireFromString("-23")
+	e := decimal.RequireFromString("5.67")
 	fmt.Println(d.Cmp(e))
 	fmt.Println(d.Cmp(d))
 	fmt.Println(e.Cmp(d))
@@ -776,9 +776,9 @@ func ExampleDecimal_Cmp() {
 
 func ExampleDecimal_Cmp_slices() {
 	s := []decimal.Decimal{
-		decimal.MustParse("-5.67"),
-		decimal.MustParse("23"),
-		decimal.MustParse("0"),
+		decimal.RequireFromString("-5.67"),
+		decimal.RequireFromString("23"),
+		decimal.RequireFromString("0"),
 	}
 	fmt.Println(slices.CompareFunc(s, s, decimal.Decimal.Cmp))
 	fmt.Println(slices.MaxFunc(s, decimal.Decimal.Cmp))
@@ -786,7 +786,7 @@ func ExampleDecimal_Cmp_slices() {
 	fmt.Println(s, slices.IsSortedFunc(s, decimal.Decimal.Cmp))
 	slices.SortFunc(s, decimal.Decimal.Cmp)
 	fmt.Println(s, slices.IsSortedFunc(s, decimal.Decimal.Cmp))
-	fmt.Println(slices.BinarySearchFunc(s, decimal.MustParse("1"), decimal.Decimal.Cmp))
+	fmt.Println(slices.BinarySearchFunc(s, decimal.RequireFromString("1"), decimal.Decimal.Cmp))
 	// Output:
 	// 0
 	// 23
@@ -797,8 +797,8 @@ func ExampleDecimal_Cmp_slices() {
 }
 
 func ExampleDecimal_CmpAbs() {
-	d := decimal.MustParse("-23")
-	e := decimal.MustParse("5.67")
+	d := decimal.RequireFromString("-23")
+	e := decimal.RequireFromString("5.67")
 	fmt.Println(d.CmpAbs(e))
 	fmt.Println(d.CmpAbs(d))
 	fmt.Println(e.CmpAbs(d))
@@ -810,9 +810,9 @@ func ExampleDecimal_CmpAbs() {
 
 func ExampleDecimal_CmpAbs_slices() {
 	s := []decimal.Decimal{
-		decimal.MustParse("-5.67"),
-		decimal.MustParse("23"),
-		decimal.MustParse("0"),
+		decimal.RequireFromString("-5.67"),
+		decimal.RequireFromString("23"),
+		decimal.RequireFromString("0"),
 	}
 	fmt.Println(slices.CompareFunc(s, s, decimal.Decimal.CmpAbs))
 	fmt.Println(slices.MaxFunc(s, decimal.Decimal.CmpAbs))
@@ -820,7 +820,7 @@ func ExampleDecimal_CmpAbs_slices() {
 	fmt.Println(s, slices.IsSortedFunc(s, decimal.Decimal.CmpAbs))
 	slices.SortFunc(s, decimal.Decimal.CmpAbs)
 	fmt.Println(s, slices.IsSortedFunc(s, decimal.Decimal.CmpAbs))
-	fmt.Println(slices.BinarySearchFunc(s, decimal.MustParse("1"), decimal.Decimal.CmpAbs))
+	fmt.Println(slices.BinarySearchFunc(s, decimal.RequireFromString("1"), decimal.Decimal.CmpAbs))
 	// Output:
 	// 0
 	// 23
@@ -831,8 +831,8 @@ func ExampleDecimal_CmpAbs_slices() {
 }
 
 func ExampleDecimal_CmpTotal() {
-	d := decimal.MustParse("2.0")
-	e := decimal.MustParse("2.00")
+	d := decimal.RequireFromString("2.0")
+	e := decimal.RequireFromString("2.00")
 	fmt.Println(d.CmpTotal(e))
 	fmt.Println(d.CmpTotal(d))
 	fmt.Println(e.CmpTotal(d))
@@ -844,9 +844,9 @@ func ExampleDecimal_CmpTotal() {
 
 func ExampleDecimal_CmpTotal_slices() {
 	s := []decimal.Decimal{
-		decimal.MustParse("-5.67"),
-		decimal.MustParse("23"),
-		decimal.MustParse("0"),
+		decimal.RequireFromString("-5.67"),
+		decimal.RequireFromString("23"),
+		decimal.RequireFromString("0"),
 	}
 	fmt.Println(slices.CompareFunc(s, s, decimal.Decimal.CmpTotal))
 	fmt.Println(slices.MaxFunc(s, decimal.Decimal.CmpTotal))
@@ -854,7 +854,7 @@ func ExampleDecimal_CmpTotal_slices() {
 	fmt.Println(s, slices.IsSortedFunc(s, decimal.Decimal.CmpTotal))
 	slices.SortFunc(s, decimal.Decimal.CmpTotal)
 	fmt.Println(s, slices.IsSortedFunc(s, decimal.Decimal.CmpTotal))
-	fmt.Println(slices.BinarySearchFunc(s, decimal.MustParse("10"), decimal.Decimal.CmpTotal))
+	fmt.Println(slices.BinarySearchFunc(s, decimal.RequireFromString("10"), decimal.Decimal.CmpTotal))
 	// Output:
 	// 0
 	// 23
@@ -865,26 +865,26 @@ func ExampleDecimal_CmpTotal_slices() {
 }
 
 func ExampleDecimal_Max() {
-	d := decimal.MustParse("23")
-	e := decimal.MustParse("-5.67")
+	d := decimal.RequireFromString("23")
+	e := decimal.RequireFromString("-5.67")
 	fmt.Println(d.Max(e))
 	// Output: 23
 }
 
 func ExampleDecimal_Min() {
-	d := decimal.MustParse("23")
-	e := decimal.MustParse("-5.67")
+	d := decimal.RequireFromString("23")
+	e := decimal.RequireFromString("-5.67")
 	fmt.Println(d.Min(e))
 	// Output: -5.67
 }
 
 //nolint:revive
 func ExampleDecimal_Clamp() {
-	min := decimal.MustParse("-20")
-	max := decimal.MustParse("20")
-	d := decimal.MustParse("-5.67")
-	e := decimal.MustParse("0")
-	f := decimal.MustParse("23")
+	min := decimal.RequireFromString("-20")
+	max := decimal.RequireFromString("20")
+	d := decimal.RequireFromString("-5.67")
+	e := decimal.RequireFromString("0")
+	f := decimal.RequireFromString("23")
 	fmt.Println(d.Clamp(min, max))
 	fmt.Println(e.Clamp(min, max))
 	fmt.Println(f.Clamp(min, max))
@@ -895,7 +895,7 @@ func ExampleDecimal_Clamp() {
 }
 
 func ExampleDecimal_Rescale() {
-	d := decimal.MustParse("5.678")
+	d := decimal.RequireFromString("5.678")
 	fmt.Println(d.Rescale(0))
 	fmt.Println(d.Rescale(1))
 	fmt.Println(d.Rescale(2))
@@ -910,10 +910,10 @@ func ExampleDecimal_Rescale() {
 }
 
 func ExampleDecimal_Quantize() {
-	d := decimal.MustParse("5.678")
-	x := decimal.MustParse("1")
-	y := decimal.MustParse("0.1")
-	z := decimal.MustParse("0.01")
+	d := decimal.RequireFromString("5.678")
+	x := decimal.RequireFromString("1")
+	y := decimal.RequireFromString("0.1")
+	z := decimal.RequireFromString("0.01")
 	fmt.Println(d.Quantize(x))
 	fmt.Println(d.Quantize(y))
 	fmt.Println(d.Quantize(z))
@@ -924,7 +924,7 @@ func ExampleDecimal_Quantize() {
 }
 
 func ExampleDecimal_Pad() {
-	d := decimal.MustParse("5.67")
+	d := decimal.RequireFromString("5.67")
 	fmt.Println(d.Pad(0))
 	fmt.Println(d.Pad(1))
 	fmt.Println(d.Pad(2))
@@ -939,7 +939,7 @@ func ExampleDecimal_Pad() {
 }
 
 func ExampleDecimal_Round() {
-	d := decimal.MustParse("5.678")
+	d := decimal.RequireFromString("5.678")
 	fmt.Println(d.Round(0))
 	fmt.Println(d.Round(1))
 	fmt.Println(d.Round(2))
@@ -954,7 +954,7 @@ func ExampleDecimal_Round() {
 }
 
 func ExampleDecimal_Trunc() {
-	d := decimal.MustParse("5.678")
+	d := decimal.RequireFromString("5.678")
 	fmt.Println(d.Trunc(0))
 	fmt.Println(d.Trunc(1))
 	fmt.Println(d.Trunc(2))
@@ -969,7 +969,7 @@ func ExampleDecimal_Trunc() {
 }
 
 func ExampleDecimal_Ceil() {
-	d := decimal.MustParse("5.678")
+	d := decimal.RequireFromString("5.678")
 	fmt.Println(d.Ceil(0))
 	fmt.Println(d.Ceil(1))
 	fmt.Println(d.Ceil(2))
@@ -984,7 +984,7 @@ func ExampleDecimal_Ceil() {
 }
 
 func ExampleDecimal_Floor() {
-	d := decimal.MustParse("5.678")
+	d := decimal.RequireFromString("5.678")
 	fmt.Println(d.Floor(0))
 	fmt.Println(d.Floor(1))
 	fmt.Println(d.Floor(2))
@@ -999,8 +999,8 @@ func ExampleDecimal_Floor() {
 }
 
 func ExampleDecimal_Scale() {
-	d := decimal.MustParse("23")
-	e := decimal.MustParse("5.67")
+	d := decimal.RequireFromString("23")
+	e := decimal.RequireFromString("5.67")
 	fmt.Println(d.Scale())
 	fmt.Println(e.Scale())
 	// Output:
@@ -1009,9 +1009,9 @@ func ExampleDecimal_Scale() {
 }
 
 func ExampleDecimal_SameScale() {
-	a := decimal.MustParse("23")
-	b := decimal.MustParse("5.67")
-	c := decimal.MustParse("1.23")
+	a := decimal.RequireFromString("23")
+	b := decimal.RequireFromString("5.67")
+	c := decimal.RequireFromString("1.23")
 	fmt.Println(a.SameScale(b))
 	fmt.Println(b.SameScale(c))
 	// Output:
@@ -1020,8 +1020,8 @@ func ExampleDecimal_SameScale() {
 }
 
 func ExampleDecimal_MinScale() {
-	d := decimal.MustParse("23.0000")
-	e := decimal.MustParse("-5.6700")
+	d := decimal.RequireFromString("23.0000")
+	e := decimal.RequireFromString("-5.6700")
 	fmt.Println(d.MinScale())
 	fmt.Println(e.MinScale())
 	// Output:
@@ -1030,7 +1030,7 @@ func ExampleDecimal_MinScale() {
 }
 
 func ExampleDecimal_Trim() {
-	d := decimal.MustParse("23.400")
+	d := decimal.RequireFromString("23.400")
 	fmt.Println(d.Trim(0))
 	fmt.Println(d.Trim(1))
 	fmt.Println(d.Trim(2))
@@ -1045,14 +1045,14 @@ func ExampleDecimal_Trim() {
 }
 
 func ExampleDecimal_Abs() {
-	d := decimal.MustParse("-5.67")
+	d := decimal.RequireFromString("-5.67")
 	fmt.Println(d.Abs())
 	// Output: 5.67
 }
 
 func ExampleDecimal_CopySign() {
-	d := decimal.MustParse("23.00")
-	e := decimal.MustParse("-5.67")
+	d := decimal.RequireFromString("23.00")
+	e := decimal.RequireFromString("-5.67")
 	fmt.Println(d.CopySign(e))
 	fmt.Println(e.CopySign(d))
 	// Output:
@@ -1061,15 +1061,15 @@ func ExampleDecimal_CopySign() {
 }
 
 func ExampleDecimal_Neg() {
-	d := decimal.MustParse("5.67")
+	d := decimal.RequireFromString("5.67")
 	fmt.Println(d.Neg())
 	// Output: -5.67
 }
 
 func ExampleDecimal_Sign() {
-	d := decimal.MustParse("-5.67")
-	e := decimal.MustParse("23")
-	f := decimal.MustParse("0")
+	d := decimal.RequireFromString("-5.67")
+	e := decimal.RequireFromString("23")
+	f := decimal.RequireFromString("0")
 	fmt.Println(d.Sign())
 	fmt.Println(e.Sign())
 	fmt.Println(f.Sign())
@@ -1080,9 +1080,9 @@ func ExampleDecimal_Sign() {
 }
 
 func ExampleDecimal_IsNeg() {
-	d := decimal.MustParse("-5.67")
-	e := decimal.MustParse("23")
-	f := decimal.MustParse("0")
+	d := decimal.RequireFromString("-5.67")
+	e := decimal.RequireFromString("23")
+	f := decimal.RequireFromString("0")
 	fmt.Println(d.IsNeg())
 	fmt.Println(e.IsNeg())
 	fmt.Println(f.IsNeg())
@@ -1094,9 +1094,9 @@ func ExampleDecimal_IsNeg() {
 
 func ExampleDecimal_IsNeg_slices() {
 	s := []decimal.Decimal{
-		decimal.MustParse("-5.67"),
-		decimal.MustParse("23"),
-		decimal.MustParse("0"),
+		decimal.RequireFromString("-5.67"),
+		decimal.RequireFromString("23"),
+		decimal.RequireFromString("0"),
 	}
 	fmt.Println(slices.ContainsFunc(s, decimal.Decimal.IsNeg))
 	fmt.Println(slices.IndexFunc(s, decimal.Decimal.IsNeg))
@@ -1108,9 +1108,9 @@ func ExampleDecimal_IsNeg_slices() {
 }
 
 func ExampleDecimal_IsPos() {
-	d := decimal.MustParse("-5.67")
-	e := decimal.MustParse("23")
-	f := decimal.MustParse("0")
+	d := decimal.RequireFromString("-5.67")
+	e := decimal.RequireFromString("23")
+	f := decimal.RequireFromString("0")
 	fmt.Println(d.IsPos())
 	fmt.Println(e.IsPos())
 	fmt.Println(f.IsPos())
@@ -1122,9 +1122,9 @@ func ExampleDecimal_IsPos() {
 
 func ExampleDecimal_IsPos_slices() {
 	s := []decimal.Decimal{
-		decimal.MustParse("-5.67"),
-		decimal.MustParse("23"),
-		decimal.MustParse("0"),
+		decimal.RequireFromString("-5.67"),
+		decimal.RequireFromString("23"),
+		decimal.RequireFromString("0"),
 	}
 	fmt.Println(slices.ContainsFunc(s, decimal.Decimal.IsPos))
 	fmt.Println(slices.IndexFunc(s, decimal.Decimal.IsPos))
@@ -1136,9 +1136,9 @@ func ExampleDecimal_IsPos_slices() {
 }
 
 func ExampleDecimal_IsZero() {
-	d := decimal.MustParse("-5.67")
-	e := decimal.MustParse("23")
-	f := decimal.MustParse("0")
+	d := decimal.RequireFromString("-5.67")
+	e := decimal.RequireFromString("23")
+	f := decimal.RequireFromString("0")
 	fmt.Println(d.IsZero())
 	fmt.Println(e.IsZero())
 	fmt.Println(f.IsZero())
@@ -1150,9 +1150,9 @@ func ExampleDecimal_IsZero() {
 
 func ExampleDecimal_IsZero_slices() {
 	s := []decimal.Decimal{
-		decimal.MustParse("-5.67"),
-		decimal.MustParse("23"),
-		decimal.MustParse("0"),
+		decimal.RequireFromString("-5.67"),
+		decimal.RequireFromString("23"),
+		decimal.RequireFromString("0"),
 	}
 	fmt.Println(slices.ContainsFunc(s, decimal.Decimal.IsZero))
 	fmt.Println(slices.IndexFunc(s, decimal.Decimal.IsZero))
@@ -1164,8 +1164,8 @@ func ExampleDecimal_IsZero_slices() {
 }
 
 func ExampleDecimal_IsInt() {
-	d := decimal.MustParse("1.00")
-	e := decimal.MustParse("1.01")
+	d := decimal.RequireFromString("1.00")
+	e := decimal.RequireFromString("1.01")
 	fmt.Println(d.IsInt())
 	fmt.Println(e.IsInt())
 	// Output:
@@ -1175,9 +1175,9 @@ func ExampleDecimal_IsInt() {
 
 func ExampleDecimal_IsInt_slices() {
 	s := []decimal.Decimal{
-		decimal.MustParse("-5.67"),
-		decimal.MustParse("23"),
-		decimal.MustParse("0"),
+		decimal.RequireFromString("-5.67"),
+		decimal.RequireFromString("23"),
+		decimal.RequireFromString("0"),
 	}
 	fmt.Println(slices.ContainsFunc(s, decimal.Decimal.IsInt))
 	fmt.Println(slices.IndexFunc(s, decimal.Decimal.IsInt))
@@ -1189,8 +1189,8 @@ func ExampleDecimal_IsInt_slices() {
 }
 
 func ExampleDecimal_IsOne() {
-	d := decimal.MustParse("1")
-	e := decimal.MustParse("2")
+	d := decimal.RequireFromString("1")
+	e := decimal.RequireFromString("2")
 	fmt.Println(d.IsOne())
 	fmt.Println(e.IsOne())
 	// Output:
@@ -1200,9 +1200,9 @@ func ExampleDecimal_IsOne() {
 
 func ExampleDecimal_IsOne_slices() {
 	s := []decimal.Decimal{
-		decimal.MustParse("-5.67"),
-		decimal.MustParse("23"),
-		decimal.MustParse("1"),
+		decimal.RequireFromString("-5.67"),
+		decimal.RequireFromString("23"),
+		decimal.RequireFromString("1"),
 	}
 	fmt.Println(slices.ContainsFunc(s, decimal.Decimal.IsOne))
 	fmt.Println(slices.IndexFunc(s, decimal.Decimal.IsOne))
@@ -1214,10 +1214,10 @@ func ExampleDecimal_IsOne_slices() {
 }
 
 func ExampleDecimal_WithinOne() {
-	d := decimal.MustParse("1")
-	e := decimal.MustParse("0.9")
-	f := decimal.MustParse("-0.9")
-	g := decimal.MustParse("-1")
+	d := decimal.RequireFromString("1")
+	e := decimal.RequireFromString("0.9")
+	f := decimal.RequireFromString("-0.9")
+	g := decimal.RequireFromString("-1")
 	fmt.Println(d.WithinOne())
 	fmt.Println(e.WithinOne())
 	fmt.Println(f.WithinOne())
@@ -1231,9 +1231,9 @@ func ExampleDecimal_WithinOne() {
 
 func ExampleDecimal_WithinOne_slices() {
 	s := []decimal.Decimal{
-		decimal.MustParse("-5.67"),
-		decimal.MustParse("23"),
-		decimal.MustParse("0.1"),
+		decimal.RequireFromString("-5.67"),
+		decimal.RequireFromString("23"),
+		decimal.RequireFromString("0.1"),
 	}
 	fmt.Println(slices.ContainsFunc(s, decimal.Decimal.WithinOne))
 	fmt.Println(slices.IndexFunc(s, decimal.Decimal.WithinOne))
@@ -1257,11 +1257,11 @@ func ExampleNullDecimal_Scan() {
 
 func ExampleNullDecimal_Value() {
 	n := decimal.NullDecimal{
-		Decimal: decimal.MustParse("5.67"),
+		Decimal: decimal.RequireFromString("5.67"),
 		Valid:   true,
 	}
 	m := decimal.NullDecimal{
-		Decimal: decimal.MustParse("0"),
+		Decimal: decimal.RequireFromString("0"),
 		Valid:   false,
 	}
 	fmt.Println(n.Value())
