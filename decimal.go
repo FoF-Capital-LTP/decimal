@@ -722,8 +722,42 @@ func (d *Decimal) UnmarshalBinary(data []byte) error {
 // MarshalBinary implements the [encoding.BinaryMarshaler] interface.
 //
 // [encoding.BinaryMarshaler]: https://pkg.go.dev/encoding#BinaryMarshaler
-func (d Decimal) MarshalBinary() ([]byte, error) {
+func (d *Decimal) MarshalBinary() ([]byte, error) {
 	return d.bcd(), nil
+}
+
+func unquoteIfQuoted(value []byte) (string, error) {
+	// If the amount is quoted, strip the quotes
+	if len(value) > 2 && value[0] == '"' && value[len(value)-1] == '"' {
+		value = value[1 : len(value)-1]
+	}
+	return string(value), nil
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (d *Decimal) UnmarshalJSON(decimalBytes []byte) error {
+	if string(decimalBytes) == "null" {
+		return nil
+	}
+
+	str, err := unquoteIfQuoted(decimalBytes)
+	if err != nil {
+		return fmt.Errorf("error decoding string '%s': %s", decimalBytes, err)
+	}
+
+	decimal, err := Parse(str)
+	*d = decimal
+	if err != nil {
+		return fmt.Errorf("error decoding string '%s': %s", str, err)
+	}
+	return nil
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (d Decimal) MarshalJSON() ([]byte, error) {
+	var str string
+	str = "\"" + d.String() + "\""
+	return []byte(str), nil
 }
 
 // Scan implements the [sql.Scanner] interface.
