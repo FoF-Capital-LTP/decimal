@@ -692,6 +692,16 @@ func (d Decimal) Int64(scale int) (whole, frac int64, ok bool) {
 	return int64(q), int64(r), true
 }
 
+// GobEncode implements the gob.GobEncoder interface for gob serialization.
+func (d Decimal) GobEncode() ([]byte, error) {
+	return d.MarshalBinary()
+}
+
+// GobDecode implements the gob.GobDecoder interface for gob serialization.
+func (d *Decimal) GobDecode(data []byte) error {
+	return d.UnmarshalBinary(data)
+}
+
 // UnmarshalText implements the [encoding.TextUnmarshaler] interface.
 // See also constructor [NewFromString].
 //
