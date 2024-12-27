@@ -33,7 +33,8 @@ var (
 	Hundred             = MustNew(100, 0)                        // Hundred represents the decimal value of 100.
 	Thousand            = MustNew(1_000, 0)                      // Thousand represents the decimal value of 1,000.
 	E                   = MustNew(2_718_281_828_459_045_235, 18) // E represents Euler’s number rounded to 18 digits.
-	Pi                  = MustNew(3_141_592_653_589_793_238, 18) // Pi represents the value of π rounded to 18 digits.
+	Pi                  = MustNew(3_141_592_653_589_793_238, 18) // Pi represents the value of π rounded to 18 digits.\
+	MaxNumber           = MustNew(maxFint, 0)                    // Max represents the maximum decimal value.
 	errDecimalOverflow  = errors.New("decimal overflow")
 	errInvalidDecimal   = errors.New("invalid decimal")
 	errScaleRange       = errors.New("scale out of range")
