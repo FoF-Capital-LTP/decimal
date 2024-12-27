@@ -41,7 +41,53 @@ var (
 	errInvalidOperation = errors.New("invalid operation")
 	errInexactDivision  = errors.New("inexact division")
 	errDivisionByZero   = errors.New("division by zero")
+	powerOf10           = []Decimal{
+		{neg: false, scale: 18, coef: 1},
+		{neg: false, scale: 17, coef: 1},
+		{neg: false, scale: 16, coef: 1},
+		{neg: false, scale: 15, coef: 1},
+		{neg: false, scale: 14, coef: 1},
+		{neg: false, scale: 13, coef: 1},
+		{neg: false, scale: 12, coef: 1},
+		{neg: false, scale: 11, coef: 1},
+		{neg: false, scale: 10, coef: 1},
+		{neg: false, scale: 9, coef: 1},
+		{neg: false, scale: 8, coef: 1},
+		{neg: false, scale: 7, coef: 1},
+		{neg: false, scale: 6, coef: 1},
+		{neg: false, scale: 5, coef: 1},
+		{neg: false, scale: 4, coef: 1},
+		{neg: false, scale: 3, coef: 1},
+		{neg: false, scale: 2, coef: 1},
+		{neg: false, scale: 1, coef: 1},
+		{neg: false, scale: 0, coef: 1},
+		{neg: false, scale: 0, coef: 10},
+		{neg: false, scale: 0, coef: 100},
+		{neg: false, scale: 0, coef: 1_000},
+		{neg: false, scale: 0, coef: 10_000},
+		{neg: false, scale: 0, coef: 100_000},
+		{neg: false, scale: 0, coef: 1_000_000},
+		{neg: false, scale: 0, coef: 10_000_000},
+		{neg: false, scale: 0, coef: 100_000_000},
+		{neg: false, scale: 0, coef: 1_000_000_000},
+		{neg: false, scale: 0, coef: 10_000_000_000},
+		{neg: false, scale: 0, coef: 100_000_000_000},
+		{neg: false, scale: 0, coef: 1_000_000_000_000},
+		{neg: false, scale: 0, coef: 10_000_000_000_000},
+		{neg: false, scale: 0, coef: 100_000_000_000_000},
+		{neg: false, scale: 0, coef: 1_000_000_000_000_000},
+		{neg: false, scale: 0, coef: 10_000_000_000_000_000},
+		{neg: false, scale: 0, coef: 100_000_000_000_000_000},
+		{neg: false, scale: 0, coef: 1_000_000_000_000_000_000},
+	}
 )
+
+func PowOf10(exp int) Decimal {
+	if exp < -18 || exp > 18 {
+		panic("exponent out of range")
+	}
+	return powerOf10[exp+18]
+}
 
 // newUnsafe creates a new decimal without checking scale and coefficient.
 // Use it only if you are absolutely sure that the arguments are valid.
