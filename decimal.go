@@ -196,6 +196,14 @@ func NewFromInt64(whole, frac int64, scale int) (Decimal, error) {
 	return d, nil
 }
 
+func MustNewFromFloat64(f float64) Decimal {
+	d, err := NewFromFloat64(f)
+	if err != nil {
+		panic(fmt.Sprintf("NewFromFloat64(%v) failed: %v", f, err))
+	}
+	return d
+}
+
 // NewFromFloat64 converts a float to a (possibly rounded) decimal.
 // See also method [Decimal.Float64].
 //
