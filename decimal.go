@@ -1318,6 +1318,11 @@ func prodBint(d ...Decimal) (Decimal, error) {
 	return newFromBint(eneg, ecoef, escale, 0)
 }
 
+func (d Decimal) MulIgnoreError(e Decimal) Decimal {
+	res, _ := d.Mul(e)
+	return res
+}
+
 // Mul returns the (possibly rounded) product of decimals d and e.
 //
 // Mul returns an overflow error if the integer part of the result has
@@ -1385,6 +1390,11 @@ func (d Decimal) mulBint(e Decimal, minScale int) (Decimal, error) {
 	dscale = dscale + e.Scale()
 
 	return newFromBint(dneg, dcoef, dscale, minScale)
+}
+
+func (d Decimal) PowIgnoreError(e int) Decimal {
+	res, _ := d.PowInt(e)
+	return res
 }
 
 // Deprecated: use [Decimal.PowInt] instead.
@@ -1535,6 +1545,11 @@ func (d Decimal) powIntBint(power int) (Decimal, error) {
 	return newFromBint(eneg, ecoef, escale, 0)
 }
 
+func (d Decimal) SqrtIgnoreError() Decimal {
+	res, _ := d.Sqrt()
+	return res
+}
+
 // Sqrt computes the square root of a decimal.
 //
 // Sqrt returns an error if the decimal is negative.
@@ -1595,6 +1610,11 @@ func (d Decimal) sqrtBint() (Decimal, error) {
 	}
 
 	return newFromBint(false, ecoef, escale, 0)
+}
+
+func (d Decimal) ExpIgnoreError() Decimal {
+	res, _ := d.Exp()
+	return res
 }
 
 // Exp returns the (possibly rounded) exponential of a decimal.
@@ -1713,6 +1733,11 @@ func (d Decimal) expBint() (Decimal, error) {
 	}
 
 	return newFromBint(false, ecoef, escale, 0)
+}
+
+func (d Decimal) LogIgnoreError() Decimal {
+	res, _ := d.Log()
+	return res
 }
 
 // Log returns the (possibly rounded) natural logarithm of a decimal.
@@ -1971,6 +1996,11 @@ func (d Decimal) SubAbs(e Decimal) (Decimal, error) {
 	return f.Abs(), nil
 }
 
+func (d Decimal) SubIgnoreError(e Decimal) Decimal {
+	res, _ := d.Sub(e)
+	return res
+}
+
 // Sub returns the (possibly rounded) difference between decimals d and e.
 //
 // Sub returns an error if the integer part of the result has more than [MaxPrec] digits.
@@ -1985,6 +2015,11 @@ func (d Decimal) Sub(e Decimal) (Decimal, error) {
 // equal to or greater than the currency's scale.
 func (d Decimal) SubExact(e Decimal, scale int) (Decimal, error) {
 	return d.AddExact(e.Neg(), scale)
+}
+
+func (d Decimal) AddIgnoreError(e Decimal) Decimal {
+	res, _ := d.Add(e)
+	return res
 }
 
 // Add returns the (possibly rounded) sum of decimals d and e.
@@ -2106,6 +2141,11 @@ func (d Decimal) FMAExact(e, f Decimal, scale int) (Decimal, error) {
 	return f.AddMulExact(d, e, scale)
 }
 
+func (d Decimal) SubMulIgnoreError(e, f Decimal) Decimal {
+	res, _ := d.SubMul(e, f)
+	return res
+}
+
 // SubMul returns the (possibly rounded) [fused multiply-subtraction] of decimals d, e, and f.
 // It computes d - e * f without any intermediate rounding.
 // This method is useful for improving the accuracy and performance of algorithms
@@ -2125,6 +2165,11 @@ func (d Decimal) SubMul(e, f Decimal) (Decimal, error) {
 // equal to or greater than the currency's scale.
 func (d Decimal) SubMulExact(e, f Decimal, scale int) (Decimal, error) {
 	return d.AddMulExact(e.Neg(), f, scale)
+}
+
+func (d Decimal) AddMulIgnoreError(e, f Decimal) Decimal {
+	res, _ := d.AddMul(e, f)
+	return res
 }
 
 // AddMul returns the (possibly rounded) [fused multiply-addition] of decimals d, e, and f.
@@ -2258,6 +2303,11 @@ func (d Decimal) addMulBint(e, f Decimal, minScale int) (Decimal, error) {
 	return newFromBint(dneg, dcoef, dscale, minScale)
 }
 
+func (d Decimal) SubQuoIgnoreError(e, f Decimal) Decimal {
+	res, _ := d.SubQuo(e, f)
+	return res
+}
+
 // SubQuo returns the (possibly rounded) fused quotient-subtraction of decimals d, e, and f.
 // It computes d - e / f with double precision during intermediate rounding.
 // This method is useful for improving the accuracy and performance of algorithms
@@ -2277,6 +2327,11 @@ func (d Decimal) SubQuo(e, f Decimal) (Decimal, error) {
 // equal to or greater than the currency's scale.
 func (d Decimal) SubQuoExact(e, f Decimal, scale int) (Decimal, error) {
 	return d.AddQuoExact(e.Neg(), f, scale)
+}
+
+func (d Decimal) AddQuoIgnoreError(e, f Decimal) Decimal {
+	res, _ := d.AddQuo(e, f)
+	return res
 }
 
 // AddQuo returns the (possibly rounded) fused quotient-addition of decimals d, e, and f.
@@ -2436,6 +2491,11 @@ func (d Decimal) addQuoBint(e, f Decimal, minScale int) (Decimal, error) {
 	return newFromBint(dneg, dcoef, 2*MaxScale, minScale)
 }
 
+func (d Decimal) InvIgnoreError() Decimal {
+	res, _ := d.Inv()
+	return res
+}
+
 // Inv returns the (possibly rounded) inverse of the decimal.
 //
 // Inv returns an error if:
@@ -2447,6 +2507,11 @@ func (d Decimal) Inv() (Decimal, error) {
 		return Decimal{}, fmt.Errorf("inverting %v: %w", d, err)
 	}
 	return f, nil
+}
+
+func (d Decimal) QuoIgnoreError(e Decimal) Decimal {
+	res, _ := d.Quo(e)
+	return res
 }
 
 // Quo returns the (possibly rounded) quotient of decimals d and e.
@@ -2547,6 +2612,11 @@ func (d Decimal) quoBint(e Decimal, minScale int) (Decimal, error) {
 	dneg = dneg != e.IsNeg()
 
 	return newFromBint(dneg, dcoef, 2*MaxScale, minScale)
+}
+
+func (d Decimal) QuoRemIgnoreError(e Decimal) (Decimal, Decimal) {
+	q, r, _ := d.QuoRem(e)
+	return q, r
 }
 
 // QuoRem returns the quotient q and remainder r of decimals d and e
