@@ -659,6 +659,11 @@ func (d Decimal) Float64() (f float64, ok bool) {
 	return f, true
 }
 
+func (d Decimal) IntPart() int64 {
+	whole, _, _ := d.Int64(0)
+	return whole
+}
+
 // Int64 returns a pair of integers representing the whole and
 // (possibly rounded) fractional parts of the decimal.
 // If given scale is greater than the scale of the decimal, then the fractional part
