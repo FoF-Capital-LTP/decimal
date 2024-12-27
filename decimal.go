@@ -244,6 +244,14 @@ func (d Decimal) ULP() Decimal {
 	return newUnsafe(false, 1, d.Scale())
 }
 
+func MustNewFromString(s string) Decimal {
+	d, err := NewFromString(s)
+	if err != nil {
+		panic(fmt.Sprintf("NewFromString(%q) failed: %v", s, err))
+	}
+	return d
+}
+
 // NewFromString converts a string to a (possibly rounded) decimal.
 // The input string must be in one of the following formats:
 //
