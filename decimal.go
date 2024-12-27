@@ -1345,6 +1345,14 @@ func (d Decimal) MulIgnoreError(e Decimal) Decimal {
 	return res
 }
 
+func (d Decimal) MustMul(e Decimal) Decimal {
+	res, err := d.Mul(e)
+	if err != nil {
+		panic(err)
+	}
+	return res
+}
+
 // Mul returns the (possibly rounded) product of decimals d and e.
 //
 // Mul returns an overflow error if the integer part of the result has
@@ -1414,8 +1422,16 @@ func (d Decimal) mulBint(e Decimal, minScale int) (Decimal, error) {
 	return newFromBint(dneg, dcoef, dscale, minScale)
 }
 
-func (d Decimal) PowIgnoreError(e int) Decimal {
+func (d Decimal) PowIntIgnoreError(e int) Decimal {
 	res, _ := d.PowInt(e)
+	return res
+}
+
+func (d Decimal) MustPowInt(e int) Decimal {
+	res, err := d.PowInt(e)
+	if err != nil {
+		panic(err)
+	}
 	return res
 }
 
@@ -1572,6 +1588,14 @@ func (d Decimal) SqrtIgnoreError() Decimal {
 	return res
 }
 
+func (d Decimal) MustSqrt() Decimal {
+	res, err := d.Sqrt()
+	if err != nil {
+		panic(err)
+	}
+	return res
+}
+
 // Sqrt computes the square root of a decimal.
 //
 // Sqrt returns an error if the decimal is negative.
@@ -1636,6 +1660,14 @@ func (d Decimal) sqrtBint() (Decimal, error) {
 
 func (d Decimal) ExpIgnoreError() Decimal {
 	res, _ := d.Exp()
+	return res
+}
+
+func (d Decimal) MustExp() Decimal {
+	res, err := d.Exp()
+	if err != nil {
+		panic(err)
+	}
 	return res
 }
 
@@ -1759,6 +1791,14 @@ func (d Decimal) expBint() (Decimal, error) {
 
 func (d Decimal) LogIgnoreError() Decimal {
 	res, _ := d.Log()
+	return res
+}
+
+func (d Decimal) MustLog() Decimal {
+	res, err := d.Log()
+	if err != nil {
+		panic(err)
+	}
 	return res
 }
 
@@ -2023,6 +2063,14 @@ func (d Decimal) SubIgnoreError(e Decimal) Decimal {
 	return res
 }
 
+func (d Decimal) MustSub(e Decimal) Decimal {
+	res, err := d.Sub(e)
+	if err != nil {
+		panic(err)
+	}
+	return res
+}
+
 // Sub returns the (possibly rounded) difference between decimals d and e.
 //
 // Sub returns an error if the integer part of the result has more than [MaxPrec] digits.
@@ -2041,6 +2089,14 @@ func (d Decimal) SubExact(e Decimal, scale int) (Decimal, error) {
 
 func (d Decimal) AddIgnoreError(e Decimal) Decimal {
 	res, _ := d.Add(e)
+	return res
+}
+
+func (d Decimal) MustAdd(e Decimal) Decimal {
+	res, err := d.Add(e)
+	if err != nil {
+		panic(err)
+	}
 	return res
 }
 
@@ -2168,6 +2224,14 @@ func (d Decimal) SubMulIgnoreError(e, f Decimal) Decimal {
 	return res
 }
 
+func (d Decimal) MustSubMul(e, f Decimal) Decimal {
+	res, err := d.SubMul(e, f)
+	if err != nil {
+		panic(err)
+	}
+	return res
+}
+
 // SubMul returns the (possibly rounded) [fused multiply-subtraction] of decimals d, e, and f.
 // It computes d - e * f without any intermediate rounding.
 // This method is useful for improving the accuracy and performance of algorithms
@@ -2191,6 +2255,14 @@ func (d Decimal) SubMulExact(e, f Decimal, scale int) (Decimal, error) {
 
 func (d Decimal) AddMulIgnoreError(e, f Decimal) Decimal {
 	res, _ := d.AddMul(e, f)
+	return res
+}
+
+func (d Decimal) MustAddMul(e, f Decimal) Decimal {
+	res, err := d.AddMul(e, f)
+	if err != nil {
+		panic(err)
+	}
 	return res
 }
 
@@ -2330,6 +2402,14 @@ func (d Decimal) SubQuoIgnoreError(e, f Decimal) Decimal {
 	return res
 }
 
+func (d Decimal) MustSubQuo(e, f Decimal) Decimal {
+	res, err := d.SubQuo(e, f)
+	if err != nil {
+		panic(err)
+	}
+	return res
+}
+
 // SubQuo returns the (possibly rounded) fused quotient-subtraction of decimals d, e, and f.
 // It computes d - e / f with double precision during intermediate rounding.
 // This method is useful for improving the accuracy and performance of algorithms
@@ -2353,6 +2433,14 @@ func (d Decimal) SubQuoExact(e, f Decimal, scale int) (Decimal, error) {
 
 func (d Decimal) AddQuoIgnoreError(e, f Decimal) Decimal {
 	res, _ := d.AddQuo(e, f)
+	return res
+}
+
+func (d Decimal) MustAddQuo(e, f Decimal) Decimal {
+	res, err := d.AddQuo(e, f)
+	if err != nil {
+		panic(err)
+	}
 	return res
 }
 
@@ -2518,6 +2606,14 @@ func (d Decimal) InvIgnoreError() Decimal {
 	return res
 }
 
+func (d Decimal) MustInv() Decimal {
+	res, err := d.Inv()
+	if err != nil {
+		panic(err)
+	}
+	return res
+}
+
 // Inv returns the (possibly rounded) inverse of the decimal.
 //
 // Inv returns an error if:
@@ -2533,6 +2629,14 @@ func (d Decimal) Inv() (Decimal, error) {
 
 func (d Decimal) QuoIgnoreError(e Decimal) Decimal {
 	res, _ := d.Quo(e)
+	return res
+}
+
+func (d Decimal) MustQuo(e Decimal) Decimal {
+	res, err := d.Quo(e)
+	if err != nil {
+		panic(err)
+	}
 	return res
 }
 
@@ -2638,6 +2742,14 @@ func (d Decimal) quoBint(e Decimal, minScale int) (Decimal, error) {
 
 func (d Decimal) QuoRemIgnoreError(e Decimal) (Decimal, Decimal) {
 	q, r, _ := d.QuoRem(e)
+	return q, r
+}
+
+func (d Decimal) MustQuoRem(e Decimal) (Decimal, Decimal) {
+	q, r, err := d.QuoRem(e)
+	if err != nil {
+		panic(err)
+	}
 	return q, r
 }
 
