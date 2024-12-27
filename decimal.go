@@ -25,16 +25,16 @@ const (
 )
 
 var (
-	NegOne              = MustNew(-1, 0)                         // NegOne represents the decimal value of -1.
-	Zero                = MustNew(0, 0)                          // Zero represents the decimal value of 0. For comparison purposes, use IsZero method.
-	One                 = MustNew(1, 0)                          // One represents the decimal value of 1.
-	Two                 = MustNew(2, 0)                          // Two represents the decimal value of 2.
-	Ten                 = MustNew(10, 0)                         // Ten represents the decimal value of 10.
-	Hundred             = MustNew(100, 0)                        // Hundred represents the decimal value of 100.
-	Thousand            = MustNew(1_000, 0)                      // Thousand represents the decimal value of 1,000.
-	E                   = MustNew(2_718_281_828_459_045_235, 18) // E represents Euler’s number rounded to 18 digits.
-	Pi                  = MustNew(3_141_592_653_589_793_238, 18) // Pi represents the value of π rounded to 18 digits.\
-	MaxNumber           = MustNew(maxFint, 0)                    // Max represents the maximum decimal value.
+	NegOne              = MustNew(-1, 0)                               // NegOne represents the decimal value of -1.
+	Zero                = MustNew(0, 0)                                // Zero represents the decimal value of 0. For comparison purposes, use IsZero method.
+	One                 = MustNew(1, 0)                                // One represents the decimal value of 1.
+	Two                 = MustNew(2, 0)                                // Two represents the decimal value of 2.
+	Ten                 = MustNew(10, 0)                               // Ten represents the decimal value of 10.
+	Hundred             = MustNew(100, 0)                              // Hundred represents the decimal value of 100.
+	Thousand            = MustNew(1_000, 0)                            // Thousand represents the decimal value of 1,000.
+	E                   = MustNew(2_718_281_828_459_045_235, 18)       // E represents Euler’s number rounded to 18 digits.
+	Pi                  = MustNew(3_141_592_653_589_793_238, 18)       // Pi represents the value of π rounded to 18 digits.\
+	MaxNumber           = Decimal{neg: false, scale: 0, coef: maxFint} // Max represents the maximum decimal value.
 	errDecimalOverflow  = errors.New("decimal overflow")
 	errInvalidDecimal   = errors.New("invalid decimal")
 	errScaleRange       = errors.New("scale out of range")
