@@ -74,6 +74,14 @@ func NewFromString(s string) (Decimal, error) {
 	return ParseExact(s, 0)
 }
 
+func NewUnsafe(neg bool, scale int8, coef uint64) Decimal {
+	return Decimal{
+		neg:   neg,
+		scale: scale,
+		coef:  fint(coef),
+	}
+}
+
 func RequireFromString(s string) Decimal {
 	d, err := NewFromString(s)
 	if err != nil {
