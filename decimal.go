@@ -527,6 +527,18 @@ func (d Decimal) String() string {
 		pos--
 	}
 
+	if d.Scale() > 0 {
+		// Trailing 0
+		var end = len(buf) - 1
+		for buf[end] == '0' {
+			end--
+		}
+		if buf[end] == '.' {
+			end--
+		}
+		return string(buf[pos+1 : end+1])
+	}
+
 	return string(buf[pos+1:])
 }
 
