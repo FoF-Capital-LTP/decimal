@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"unsafe"
 )
 
 // Decimal represents a finite floating-point decimal number.
@@ -122,14 +123,18 @@ func overflowError(gotPrec, gotScale, wantScale int) error {
 	}
 }
 
-func unknownOverflowError(wantScale int) error {
-	maxDigits := MaxPrec - wantScale
-	switch wantScale {
-	case 0:
-		return fmt.Errorf("%w: the integer part of a %T can have at most %v digits, but it has significantly more digits", errDecimalOverflow, Decimal{}, maxDigits)
-	default:
-		return fmt.Errorf("%w: with %v significant digits after the decimal point, the integer part of a %T can have at most %v digits, but it has significantly more digits", errDecimalOverflow, wantScale, Decimal{}, maxDigits)
+func unknownOverflowError() error {
+	return fmt.Errorf("%w: the integer part of a %T can have at most %v digits, but it has significantly more digits", errDecimalOverflow, Decimal{}, MaxPrec)
+}
+
+// MustNew is like [New] but panics if the decimal cannot be constructed.
+// It simplifies safe initialization of global variables holding decimals.
+func MustNew(value int64, scale int) Decimal {
+	d, err := New(value, scale)
+	if err != nil {
+		panic(fmt.Sprintf("New(%v, %v) failed: %v", value, scale, err))
 	}
+	return d
 }
 
 // New returns a decimal equal to value / 10^scale.
@@ -153,16 +158,6 @@ func New(value int64, scale int) (Decimal, error) {
 	return newSafe(neg, coef, scale)
 }
 
-// MustNew is like [New] but panics if the decimal cannot be constructed.
-// It simplifies safe initialization of global variables holding decimals.
-func MustNew(value int64, scale int) Decimal {
-	d, err := New(value, scale)
-	if err != nil {
-		panic(fmt.Sprintf("New(%v, %v) failed: %v", value, scale, err))
-	}
-	return d
-}
-
 // NewFromInt64 converts a pair of integers, representing the whole and
 // fractional parts, to a (possibly rounded) decimal equal to whole + frac / 10^scale.
 // NewFromInt64 removes all trailing zeros from the fractional part.
@@ -179,7 +174,7 @@ func NewFromInt64(whole, frac int64, scale int) (Decimal, error) {
 	// Whole
 	d, err := New(whole, 0)
 	if err != nil {
-		return Decimal{}, fmt.Errorf("converting integers: %w", err)
+		return Decimal{}, fmt.Errorf("converting integers: %w", err) // should never happen
 	}
 	// Fraction
 	f, err := New(frac, scale)
@@ -196,367 +191,10 @@ func NewFromInt64(whole, frac int64, scale int) (Decimal, error) {
 		f = f.Trim(0)
 		d, err = d.Add(f)
 		if err != nil {
-			return Decimal{}, fmt.Errorf("converting integers: %w", err)
+			return Decimal{}, fmt.Errorf("converting integers: %w", err) // should never happen
 		}
 	}
 	return d, nil
-}
-
-// NewFromFloat64 converts a float to a (possibly rounded) decimal.
-// See also method [Decimal.Float64].
-//
-// NewFromFloat64 returns an error if:
-//   - the float is a special value (NaN or Inf);
-//   - the integer part of the result has more than [MaxPrec] digits.
-func NewFromFloat64(f float64) (Decimal, error) {
-	// Float
-	if math.IsNaN(f) || math.IsInf(f, 0) {
-		return Decimal{}, fmt.Errorf("converting float: special value %v", f)
-	}
-	s := strconv.FormatFloat(f, 'f', -1, 64)
-	// Decimal
-	d, err := Parse(s)
-	if err != nil {
-		return Decimal{}, fmt.Errorf("converting float: %w", err)
-	}
-	return d, nil
-}
-
-// Zero returns a decimal with a value of 0, having the same scale as decimal d.
-// See also methods [Decimal.One], [Decimal.ULP].
-func (d Decimal) Zero() Decimal {
-	return newUnsafe(false, 0, d.Scale())
-}
-
-// One returns a decimal with a value of 1, having the same scale as decimal d.
-// See also methods [Decimal.Zero], [Decimal.ULP].
-func (d Decimal) One() Decimal {
-	return newUnsafe(false, pow10[d.Scale()], d.Scale())
-}
-
-// ULP (Unit in the Last Place) returns the smallest representable positive
-// difference between two decimals with the same scale as decimal d.
-// It can be useful for implementing rounding and comparison algorithms.
-// See also methods [Decimal.Zero], [Decimal.One].
-func (d Decimal) ULP() Decimal {
-	return newUnsafe(false, 1, d.Scale())
-}
-
-// Parse converts a string to a (possibly rounded) decimal.
-// The input string must be in one of the following formats:
-//
-//	1.234
-//	-1234
-//	+0.000001234
-//	1.83e5
-//	0.22e-9
-//
-// The formal EBNF grammar for the supported format is as follows:
-//
-//	sign           ::= '+' | '-'
-//	digits         ::= { '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' }
-//	significand    ::= digits '.' digits | '.' digits | digits '.' | digits
-//	exponent       ::= ('e' | 'E') [sign] digits
-//	numeric-string ::= [sign] significand [exponent]
-//
-// Parse removes leading zeros from the integer part of the input string,
-// but tries to maintain trailing zeros in the fractional part to preserve scale.
-//
-// Parse returns an error if:
-//   - the string contains any whitespaces;
-//   - the string is longer than 330 bytes;
-//   - the exponent is less than -330 or greater than 330;
-//   - the string does not represent a valid decimal number;
-//   - the integer part of the result has more than [MaxPrec] digits.
-func Parse(s string) (Decimal, error) {
-	return ParseExact(s, 0)
-}
-
-// ParseExact is similar to [Parse], but it allows you to specify how many digits
-// after the decimal point should be considered significant.
-// If any of the significant digits are lost during rounding, the method will return an error.
-// This method is useful for parsing monetary amounts, where the scale should be
-// equal to or greater than the currency's scale.
-func ParseExact(s string, scale int) (Decimal, error) {
-	if len(s) > 330 {
-		return Decimal{}, fmt.Errorf("parsing decimal: %w", errInvalidDecimal)
-	}
-	if scale < MinScale || scale > MaxScale {
-		return Decimal{}, fmt.Errorf("parsing decimal: %w", errScaleRange)
-	}
-	d, err := parseFint(s, scale)
-	if err != nil {
-		d, err = parseBint(s, scale)
-		if err != nil {
-			return Decimal{}, fmt.Errorf("parsing decimal: %w", err)
-		}
-	}
-	return d, nil
-}
-
-// parseFint parses a decimal string using uint64 arithmetic.
-// parseFint does not support exponential notation to make it as fast as possible.
-//
-//nolint:gocyclo
-func parseFint(s string, minScale int) (Decimal, error) {
-	var pos int
-	width := len(s)
-
-	// Sign
-	var neg bool
-	switch {
-	case pos == width:
-		// skip
-	case s[pos] == '-':
-		neg = true
-		pos++
-	case s[pos] == '+':
-		pos++
-	}
-
-	// Coefficient
-	var coef fint
-	var scale int
-	var hasCoef, ok bool
-
-	// Integer
-	for pos < width && s[pos] >= '0' && s[pos] <= '9' {
-		coef, ok = coef.fsa(1, s[pos]-'0')
-		if !ok {
-			return Decimal{}, errDecimalOverflow
-		}
-		pos++
-		hasCoef = true
-	}
-
-	// Fraction
-	if pos < width && s[pos] == '.' {
-		pos++
-		for pos < width && s[pos] >= '0' && s[pos] <= '9' {
-			coef, ok = coef.fsa(1, s[pos]-'0')
-			if !ok {
-				return Decimal{}, errDecimalOverflow
-			}
-			pos++
-			scale++
-			hasCoef = true
-		}
-	}
-
-	if pos != width {
-		return Decimal{}, fmt.Errorf("%w: unexpected character %q", errInvalidDecimal, s[pos])
-	}
-	if !hasCoef {
-		return Decimal{}, fmt.Errorf("%w: no coefficient", errInvalidDecimal)
-	}
-	return newFromFint(neg, coef, scale, minScale)
-}
-
-// parseBint parses a decimal string using *big.Int arithmetic.
-// parseBint supports exponential notation.
-//
-//nolint:gocyclo
-func parseBint(s string, minScale int) (Decimal, error) {
-	var pos int
-	width := len(s)
-
-	// Sign
-	var neg bool
-	switch {
-	case pos == width:
-		// skip
-	case s[pos] == '-':
-		neg = true
-		pos++
-	case s[pos] == '+':
-		pos++
-	}
-
-	// Coefficient
-	bcoef := getBint()
-	defer putBint(bcoef)
-	bcoef.setFint(0)
-	var fcoef fint
-	var shift, scale int
-	var hasCoef, ok bool
-
-	// Algorithm:
-	// 	1. Add as many digits as possible to the uint64 coefficient (fast).
-	// 	2. Once the uint64 coefficient has reached its maximum value,
-	//     add it to the *big.Int coefficient (slow).
-	// 	3. Repeat until all digits are processed.
-
-	// Integer
-	for pos < width && s[pos] >= '0' && s[pos] <= '9' {
-		fcoef, ok = fcoef.fsa(1, s[pos]-'0')
-		if !ok {
-			return Decimal{}, errDecimalOverflow // Should never happen
-		}
-		pos++
-		shift++
-		hasCoef = true
-		if fcoef.hasPrec(MaxPrec) {
-			bcoef.fsa(bcoef, shift, fcoef)
-			fcoef, shift = 0, 0
-		}
-	}
-
-	// Fraction
-	if pos < width && s[pos] == '.' {
-		pos++
-		for pos < width && s[pos] >= '0' && s[pos] <= '9' {
-			fcoef, ok = fcoef.fsa(1, s[pos]-'0')
-			if !ok {
-				return Decimal{}, errDecimalOverflow // Should never happen
-			}
-			pos++
-			scale++
-			shift++
-			hasCoef = true
-			if fcoef.hasPrec(MaxPrec) {
-				bcoef.fsa(bcoef, shift, fcoef)
-				fcoef, shift = 0, 0
-			}
-		}
-	}
-	if shift > 0 {
-		bcoef.fsa(bcoef, shift, fcoef)
-	}
-
-	// Exponent
-	var exp int
-	var eneg, hasExp, hasE bool
-	if pos < width && (s[pos] == 'e' || s[pos] == 'E') {
-		pos++
-		hasE = true
-		// Sign
-		switch {
-		case pos == width:
-			// skip
-		case s[pos] == '-':
-			eneg = true
-			pos++
-		case s[pos] == '+':
-			pos++
-		}
-		// Integer
-		for pos < width && s[pos] >= '0' && s[pos] <= '9' {
-			exp = exp*10 + int(s[pos]-'0')
-			if exp > 330 {
-				return Decimal{}, errInvalidDecimal
-			}
-			pos++
-			hasExp = true
-		}
-	}
-
-	if pos != width {
-		return Decimal{}, fmt.Errorf("%w: unexpected character %q", errInvalidDecimal, s[pos])
-	}
-	if !hasCoef {
-		return Decimal{}, fmt.Errorf("%w: no coefficient", errInvalidDecimal)
-	}
-	if hasE && !hasExp {
-		return Decimal{}, fmt.Errorf("%w: no exponent", errInvalidDecimal)
-	}
-
-	if eneg {
-		scale = scale + exp
-	} else {
-		scale = scale - exp
-	}
-
-	return newFromBint(neg, bcoef, scale, minScale)
-}
-
-// MustParse is like [Parse] but panics if the string cannot be parsed.
-// It simplifies safe initialization of global variables holding decimals.
-func MustParse(s string) Decimal {
-	d, err := Parse(s)
-	if err != nil {
-		panic(fmt.Sprintf("Parse(%q) failed: %v", s, err))
-	}
-	return d
-}
-
-// String implements the [fmt.Stringer] interface and returns
-// a string representation of the decimal.
-// The returned string does not use scientific or engineering notation and is
-// formatted according to the following formal EBNF grammar:
-//
-//	sign           ::= '-'
-//	digits         ::= { '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' }
-//	significand    ::= digits '.' digits | digits
-//	numeric-string ::= [sign] significand
-//
-// See also method [Decimal.Format].
-//
-// [fmt.Stringer]: https://pkg.go.dev/fmt#Stringer
-func (d Decimal) String() string {
-	var buf [24]byte
-	pos := len(buf) - 1
-	coef := d.Coef()
-	scale := d.Scale()
-
-	// Coefficient
-	for {
-		buf[pos] = byte(coef%10) + '0'
-		pos--
-		coef /= 10
-		if scale > 0 {
-			scale--
-			// Decimal point
-			if scale == 0 {
-				buf[pos] = '.'
-				pos--
-				// Leading 0
-				if coef == 0 {
-					buf[pos] = '0'
-					pos--
-				}
-			}
-		}
-		if coef == 0 && scale == 0 {
-			break
-		}
-	}
-
-	// Sign
-	if d.IsNeg() {
-		buf[pos] = '-'
-		pos--
-	}
-
-	if d.Scale() > 0 {
-		// Trailing 0
-		var end = len(buf) - 1
-		for buf[end] == '0' {
-			end--
-		}
-		if buf[end] == '.' {
-			end--
-		}
-		return string(buf[pos+1 : end+1])
-	}
-
-	return string(buf[pos+1:])
-}
-
-// Float64 returns the nearest binary floating-point number rounded
-// using [rounding half to even] (banker's rounding).
-// See also constructor [NewFromFloat64].
-//
-// This conversion may lose data, as float64 has a smaller precision
-// than the decimal type.
-//
-// [rounding half to even]: https://en.wikipedia.org/wiki/Rounding#Rounding_half_to_even
-func (d Decimal) Float64() (f float64, ok bool) {
-	s := d.String()
-	f, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return 0, false
-	}
-	return f, true
 }
 
 // Int64 returns a pair of integers representing the whole and
@@ -609,50 +247,659 @@ func (d Decimal) Int64(scale int) (whole, frac int64, ok bool) {
 	return int64(q), int64(r), true
 }
 
+// NewFromFloat64 converts a float to a (possibly rounded) decimal.
+// See also method [Decimal.Float64].
+//
+// NewFromFloat64 returns an error if:
+//   - the float is a special value (NaN or Inf);
+//   - the integer part of the result has more than [MaxPrec] digits.
+func NewFromFloat64(f float64) (Decimal, error) {
+	// Float
+	if math.IsNaN(f) || math.IsInf(f, 0) {
+		return Decimal{}, fmt.Errorf("converting float: special value %v", f)
+	}
+	text := make([]byte, 0, 32)
+	text = strconv.AppendFloat(text, f, 'f', -1, 64)
+
+	// Decimal
+	d, err := parse(text)
+	if err != nil {
+		return Decimal{}, fmt.Errorf("converting float: %w", err)
+	}
+	return d, nil
+}
+
+// Float64 returns the nearest binary floating-point number rounded
+// using [rounding half to even] (banker's rounding).
+// See also constructor [NewFromFloat64].
+//
+// This conversion may lose data, as float64 has a smaller precision
+// than the decimal type.
+//
+// [rounding half to even]: https://en.wikipedia.org/wiki/Rounding#Rounding_half_to_even
+func (d Decimal) Float64() (f float64, ok bool) {
+	s := d.String()
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0, false
+	}
+	return f, true
+}
+
+// MustParse is like [Parse] but panics if the string cannot be parsed.
+// It simplifies safe initialization of global variables holding decimals.
+func MustParse(s string) Decimal {
+	d, err := Parse(s)
+	if err != nil {
+		panic(fmt.Sprintf("Parse(%q) failed: %v", s, err))
+	}
+	return d
+}
+
+// Parse converts a string to a (possibly rounded) decimal.
+// The input string must be in one of the following formats:
+//
+//	1.234
+//	-1234
+//	+0.000001234
+//	1.83e5
+//	0.22e-9
+//
+// The formal EBNF grammar for the supported format is as follows:
+//
+//	sign           ::= '+' | '-'
+//	digits         ::= { '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' }
+//	significand    ::= digits '.' digits | '.' digits | digits '.' | digits
+//	exponent       ::= ('e' | 'E') [sign] digits
+//	numeric-string ::= [sign] significand [exponent]
+//
+// Parse removes leading zeros from the integer part of the input string,
+// but tries to maintain trailing zeros in the fractional part to preserve scale.
+//
+// Parse returns an error if:
+//   - the string contains any whitespaces;
+//   - the string is longer than 330 bytes;
+//   - the exponent is less than -330 or greater than 330;
+//   - the string does not represent a valid decimal number;
+//   - the integer part of the result has more than [MaxPrec] digits.
+func Parse(s string) (Decimal, error) {
+	text := unsafe.Slice(unsafe.StringData(s), len(s))
+	return parseExact(text, 0)
+}
+
+func parse(text []byte) (Decimal, error) {
+	return parseExact(text, 0)
+}
+
+// ParseExact is similar to [Parse], but it allows you to specify how many digits
+// after the decimal point should be considered significant.
+// If any of the significant digits are lost during rounding, the method will return an error.
+// This method is useful for parsing monetary amounts, where the scale should be
+// equal to or greater than the currency's scale.
+func ParseExact(s string, scale int) (Decimal, error) {
+	text := unsafe.Slice(unsafe.StringData(s), len(s))
+	return parseExact(text, scale)
+}
+
+func parseExact(text []byte, scale int) (Decimal, error) {
+	if len(text) > 330 {
+		return Decimal{}, fmt.Errorf("parsing decimal: %w", errInvalidDecimal)
+	}
+	if scale < MinScale || scale > MaxScale {
+		return Decimal{}, fmt.Errorf("parsing decimal: %w", errScaleRange)
+	}
+	d, err := parseFint(text, scale)
+	if err != nil {
+		d, err = parseBint(text, scale)
+		if err != nil {
+			return Decimal{}, fmt.Errorf("parsing decimal: %w", err)
+		}
+	}
+	return d, nil
+}
+
+// parseFint parses a decimal string using uint64 arithmetic.
+// parseFint does not support exponential notation to make it as fast as possible.
+//
+//nolint:gocyclo
+func parseFint(text []byte, minScale int) (Decimal, error) {
+	var pos int
+	width := len(text)
+
+	// Sign
+	var neg bool
+	switch {
+	case pos == width:
+		// skip
+	case text[pos] == '-':
+		neg = true
+		pos++
+	case text[pos] == '+':
+		pos++
+	}
+
+	// Coefficient
+	var coef fint
+	var scale int
+	var hasCoef, ok bool
+
+	// Integer
+	for pos < width && text[pos] >= '0' && text[pos] <= '9' {
+		coef, ok = coef.fsa(1, text[pos]-'0')
+		if !ok {
+			return Decimal{}, errDecimalOverflow
+		}
+		pos++
+		hasCoef = true
+	}
+
+	// Fraction
+	if pos < width && text[pos] == '.' {
+		pos++
+		for pos < width && text[pos] >= '0' && text[pos] <= '9' {
+			coef, ok = coef.fsa(1, text[pos]-'0')
+			if !ok {
+				return Decimal{}, errDecimalOverflow
+			}
+			pos++
+			scale++
+			hasCoef = true
+		}
+	}
+
+	if pos != width {
+		return Decimal{}, fmt.Errorf("%w: unexpected character %q", errInvalidDecimal, text[pos])
+	}
+	if !hasCoef {
+		return Decimal{}, fmt.Errorf("%w: no coefficient", errInvalidDecimal)
+	}
+	return newFromFint(neg, coef, scale, minScale)
+}
+
+// parseBint parses a decimal string using *big.Int arithmetic.
+// parseBint supports exponential notation.
+//
+//nolint:gocyclo
+func parseBint(text []byte, minScale int) (Decimal, error) {
+	var pos int
+	width := len(text)
+
+	// Sign
+	var neg bool
+	switch {
+	case pos == width:
+		// skip
+	case text[pos] == '-':
+		neg = true
+		pos++
+	case text[pos] == '+':
+		pos++
+	}
+
+	// Coefficient
+	bcoef := getBint()
+	defer putBint(bcoef)
+	var fcoef fint
+	var shift, scale int
+	var hasCoef, ok bool
+
+	bcoef.setFint(0)
+
+	// Algorithm:
+	// 	1. Add as many digits as possible to the uint64 coefficient (fast).
+	// 	2. Once the uint64 coefficient has reached its maximum value,
+	//     add it to the *big.Int coefficient (slow).
+	// 	3. Repeat until all digits are processed.
+
+	// Integer
+	for pos < width && text[pos] >= '0' && text[pos] <= '9' {
+		fcoef, ok = fcoef.fsa(1, text[pos]-'0')
+		if !ok {
+			return Decimal{}, errDecimalOverflow // Should never happen
+		}
+		pos++
+		shift++
+		hasCoef = true
+		if fcoef.hasPrec(MaxPrec) {
+			bcoef.fsa(bcoef, shift, fcoef)
+			fcoef, shift = 0, 0
+		}
+	}
+
+	// Fraction
+	if pos < width && text[pos] == '.' {
+		pos++
+		for pos < width && text[pos] >= '0' && text[pos] <= '9' {
+			fcoef, ok = fcoef.fsa(1, text[pos]-'0')
+			if !ok {
+				return Decimal{}, errDecimalOverflow // Should never happen
+			}
+			pos++
+			scale++
+			shift++
+			hasCoef = true
+			if fcoef.hasPrec(MaxPrec) {
+				bcoef.fsa(bcoef, shift, fcoef)
+				fcoef, shift = 0, 0
+			}
+		}
+	}
+	if shift > 0 {
+		bcoef.fsa(bcoef, shift, fcoef)
+	}
+
+	// Exponent
+	var exp int
+	var eneg, hasExp, hasE bool
+	if pos < width && (text[pos] == 'e' || text[pos] == 'E') {
+		pos++
+		hasE = true
+		// Sign
+		switch {
+		case pos == width:
+			// skip
+		case text[pos] == '-':
+			eneg = true
+			pos++
+		case text[pos] == '+':
+			pos++
+		}
+		// Integer
+		for pos < width && text[pos] >= '0' && text[pos] <= '9' {
+			exp = exp*10 + int(text[pos]-'0')
+			if exp > 330 {
+				return Decimal{}, errInvalidDecimal
+			}
+			pos++
+			hasExp = true
+		}
+	}
+
+	if pos != width {
+		return Decimal{}, fmt.Errorf("%w: unexpected character %q", errInvalidDecimal, text[pos])
+	}
+	if !hasCoef {
+		return Decimal{}, fmt.Errorf("%w: no coefficient", errInvalidDecimal)
+	}
+	if hasE && !hasExp {
+		return Decimal{}, fmt.Errorf("%w: no exponent", errInvalidDecimal)
+	}
+
+	if eneg {
+		scale = scale + exp
+	} else {
+		scale = scale - exp
+	}
+
+	return newFromBint(neg, bcoef, scale, minScale)
+}
+
+// String implements the [fmt.Stringer] interface and returns
+// a string representation of the decimal.
+// The returned string does not use scientific or engineering notation and is
+// formatted according to the following formal EBNF grammar:
+//
+//	sign           ::= '-'
+//	digits         ::= { '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' }
+//	significand    ::= digits '.' digits | digits
+//	numeric-string ::= [sign] significand
+//
+// See also method [Decimal.Format].
+//
+// [fmt.Stringer]: https://pkg.go.dev/fmt#Stringer
+func (d Decimal) String() string {
+	return string(d.bytes())
+}
+
+// bytes returns a string representation of the decimal as a byte slice.
+func (d Decimal) bytes() []byte {
+	text := make([]byte, 0, 24)
+	return d.append(text)
+}
+
+// append appends a string representation of the decimal to the byte slice.
+func (d Decimal) append(text []byte) []byte {
+	var buf [24]byte
+	pos := len(buf) - 1
+	coef := d.Coef()
+	scale := d.Scale()
+
+	// Coefficient
+	for {
+		buf[pos] = byte(coef%10) + '0'
+		pos--
+		coef /= 10
+		if scale > 0 {
+			scale--
+			// Decimal point
+			if scale == 0 {
+				buf[pos] = '.'
+				pos--
+				// Leading 0
+				if coef == 0 {
+					buf[pos] = '0'
+					pos--
+				}
+			}
+		}
+		if coef == 0 && scale == 0 {
+			break
+		}
+	}
+
+	// Sign
+	if d.IsNeg() {
+		buf[pos] = '-'
+		pos--
+	}
+
+	if d.Scale() > 0 {
+		// Trailing 0
+		var end = len(buf) - 1
+		for buf[end] == '0' {
+			end--
+		}
+		if buf[end] == '.' {
+			end--
+		}
+		return append(text, buf[pos+1:end+1]...)
+	}
+
+	return append(text, buf[pos+1:]...)
+}
+
+// UnmarshalJSON implements the [json.Unmarshaler] interface.
+// UnmarshalJSON supports the following types: [number] and [numeric string].
+// See also constructor [Parse].
+//
+// [number]: https://datatracker.ietf.org/doc/html/rfc8259#section-6
+// [numeric string]: https://datatracker.ietf.org/doc/html/rfc8259#section-7
+// [json.Unmarshaler]: https://pkg.go.dev/encoding/json#Unmarshaler
+func (d *Decimal) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		return nil
+	}
+	if len(data) >= 2 && data[0] == '"' && data[len(data)-1] == '"' {
+		data = data[1 : len(data)-1]
+	}
+	var err error
+	*d, err = parse(data)
+	if err != nil {
+		return fmt.Errorf("unmarshaling %T: %w", Decimal{}, err)
+	}
+	return nil
+}
+
+// MarshalJSON implements the [json.Marshaler] interface.
+// MarshalJSON always returns a [numeric string].
+// See also method [Decimal.String].
+//
+// [numeric string]: https://datatracker.ietf.org/doc/html/rfc8259#section-7
+// [json.Marshaler]: https://pkg.go.dev/encoding/json#Marshaler
+func (d Decimal) MarshalJSON() ([]byte, error) {
+	text := make([]byte, 0, 26)
+	text = append(text, '"')
+	text = d.append(text)
+	text = append(text, '"')
+	return text, nil
+}
+
 // UnmarshalText implements the [encoding.TextUnmarshaler] interface.
+// UnmarshalText supports only numeric strings.
 // See also constructor [Parse].
 //
 // [encoding.TextUnmarshaler]: https://pkg.go.dev/encoding#TextUnmarshaler
 func (d *Decimal) UnmarshalText(text []byte) error {
 	var err error
-	*d, err = Parse(string(text))
+	*d, err = parse(text)
 	if err != nil {
-		return fmt.Errorf("unmarshaling %T: %w", d, err)
+		return fmt.Errorf("unmarshaling %T: %w", Decimal{}, err)
 	}
 	return nil
 }
 
+// AppendText implements the [encoding.TextAppender] interface.
+// AppendText always appends a numeric string.
+// See also method [Decimal.String].
+//
+// [encoding.TextAppender]: https://pkg.go.dev/encoding#TextAppender
+func (d Decimal) AppendText(text []byte) ([]byte, error) {
+	return d.append(text), nil
+}
+
 // MarshalText implements the [encoding.TextMarshaler] interface.
+// MarshalText always returns a numeric string.
 // See also method [Decimal.String].
 //
 // [encoding.TextMarshaler]: https://pkg.go.dev/encoding#TextMarshaler
 func (d Decimal) MarshalText() ([]byte, error) {
-	return []byte(d.String()), nil
+	return d.bytes(), nil
 }
 
 // UnmarshalBinary implements the [encoding.BinaryUnmarshaler] interface.
+// UnmarshalBinary supports only numeric strings.
 // See also constructor [Parse].
 //
 // [encoding.BinaryUnmarshaler]: https://pkg.go.dev/encoding#BinaryUnmarshaler
 func (d *Decimal) UnmarshalBinary(data []byte) error {
 	var err error
-	*d, err = Parse(string(data))
+	*d, err = parse(data)
 	if err != nil {
-		return fmt.Errorf("unmarshaling %T: %w", d, err)
+		return fmt.Errorf("unmarshaling %T: %w", Decimal{}, err)
 	}
 	return nil
 }
 
+// AppendBinary implements the [encoding.BinaryAppender] interface.
+// AppendBinary always appends a numeric string.
+// See also method [Decimal.String].
+//
+// [encoding.BinaryAppender]: https://pkg.go.dev/encoding#BinaryAppender
+func (d Decimal) AppendBinary(data []byte) ([]byte, error) {
+	return d.append(data), nil
+}
+
 // MarshalBinary implements the [encoding.BinaryMarshaler] interface.
+// MarshalBinary always returns a numeric string.
 // See also method [Decimal.String].
 //
 // [encoding.BinaryMarshaler]: https://pkg.go.dev/encoding#BinaryMarshaler
 func (d Decimal) MarshalBinary() ([]byte, error) {
-	return []byte(d.String()), nil
+	return d.bytes(), nil
+}
+
+// UnmarshalBSONValue implements the [v2/bson.ValueUnmarshaler] interface.
+// UnmarshalBSONValue supports the following [types]: Double, String, 32-bit Integer, 64-bit Integer, and [Decimal128].
+//
+// [v2/bson.ValueUnmarshaler]: https://pkg.go.dev/go.mongodb.org/mongo-driver/v2/bson#ValueUnmarshaler
+// [types]: https://bsonspec.org/spec.html
+// [Decimal128]: https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.md
+func (d *Decimal) UnmarshalBSONValue(typ byte, data []byte) error {
+	// constants are from https://bsonspec.org/spec.html
+	var err error
+	switch typ {
+	case 1:
+		*d, err = parseBSONFloat64(data)
+	case 2:
+		*d, err = parseBSONString(data)
+	case 10:
+		// null, do nothing
+	case 16:
+		*d, err = parseBSONInt32(data)
+	case 18:
+		*d, err = parseBSONInt64(data)
+	case 19:
+		*d, err = parseIEEEDecimal128(data)
+	default:
+		err = fmt.Errorf("BSON type %d is not supported", typ)
+	}
+	if err != nil {
+		err = fmt.Errorf("converting from BSON type %d to %T: %w", typ, Decimal{}, err)
+	}
+	return err
+}
+
+// MarshalBSONValue implements the [v2/bson.ValueMarshaler] interface.
+// MarshalBSONValue always returns [Decimal128].
+//
+// [v2/bson.ValueMarshaler]: https://pkg.go.dev/go.mongodb.org/mongo-driver/v2/bson#ValueMarshaler
+// [Decimal128]: https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.md
+func (d Decimal) MarshalBSONValue() (typ byte, data []byte, err error) {
+	return 19, d.ieeeDecimal128(), nil
+}
+
+// parseBSONInt32 parses a BSON int32 to a decimal.
+// The byte order of the input data must be little-endian.
+func parseBSONInt32(data []byte) (Decimal, error) {
+	if len(data) != 4 {
+		return Decimal{}, fmt.Errorf("%w: invalid data length %v", errInvalidDecimal, len(data))
+	}
+	u := uint32(data[0])
+	u |= uint32(data[1]) << 8
+	u |= uint32(data[2]) << 16
+	u |= uint32(data[3]) << 24
+	i := int64(int32(u)) //nolint:gosec
+	return New(i, 0)
+}
+
+// parseBSONInt64 parses a BSON int64 to a decimal.
+// The byte order of the input data must be little-endian.
+func parseBSONInt64(data []byte) (Decimal, error) {
+	if len(data) != 8 {
+		return Decimal{}, fmt.Errorf("%w: invalid data length %v", errInvalidDecimal, len(data))
+	}
+	u := uint64(data[0])
+	u |= uint64(data[1]) << 8
+	u |= uint64(data[2]) << 16
+	u |= uint64(data[3]) << 24
+	u |= uint64(data[4]) << 32
+	u |= uint64(data[5]) << 40
+	u |= uint64(data[6]) << 48
+	u |= uint64(data[7]) << 56
+	i := int64(u) //nolint:gosec
+	return New(i, 0)
+}
+
+// parseBSONFloat64 parses a BSON float64 to a (possibly rounded) decimal.
+// The byte order of the input data must be little-endian.
+func parseBSONFloat64(data []byte) (Decimal, error) {
+	if len(data) != 8 {
+		return Decimal{}, fmt.Errorf("%w: invalid data length %v", errInvalidDecimal, len(data))
+	}
+	u := uint64(data[0])
+	u |= uint64(data[1]) << 8
+	u |= uint64(data[2]) << 16
+	u |= uint64(data[3]) << 24
+	u |= uint64(data[4]) << 32
+	u |= uint64(data[5]) << 40
+	u |= uint64(data[6]) << 48
+	u |= uint64(data[7]) << 56
+	f := math.Float64frombits(u)
+	return NewFromFloat64(f)
+}
+
+// parseBSONString parses a BSON string to a (possibly rounded) decimal.
+// The byte order of the input data must be little-endian.
+func parseBSONString(data []byte) (Decimal, error) {
+	if len(data) < 4 {
+		return Decimal{}, fmt.Errorf("%w: invalid data length %v", errInvalidDecimal, len(data))
+	}
+	u := uint32(data[0])
+	u |= uint32(data[1]) << 8
+	u |= uint32(data[2]) << 16
+	u |= uint32(data[3]) << 24
+	l := int(int32(u)) //nolint:gosec
+	if l < 1 || l > 330 || len(data) < l+4 {
+		return Decimal{}, fmt.Errorf("%w: invalid string length %v", errInvalidDecimal, l)
+	}
+	if data[l+4-1] != 0 {
+		return Decimal{}, fmt.Errorf("%w: invalid null terminator %v", errInvalidDecimal, data[l+4-1])
+	}
+	s := string(data[4 : l+4-1])
+	return Parse(s)
+}
+
+// parseIEEEDecimal128 converts a 128-bit IEEE 754-2008 decimal
+// floating point with binary integer decimal encoding to
+// a (possibly rounded) decimal.
+// The byte order of the input data must be little-endian.
+//
+// parseIEEEDecimal128 returns an error if:
+//   - the data length is not equal to 16 bytes;
+//   - the decimal a special value (NaN or Inf);
+//   - the integer part of the result has more than [MaxPrec] digits.
+func parseIEEEDecimal128(data []byte) (Decimal, error) {
+	if len(data) != 16 {
+		return Decimal{}, fmt.Errorf("%w: invalid data length %v", errInvalidDecimal, len(data))
+	}
+	if data[15]&0b0111_1100 == 0b0111_1100 {
+		return Decimal{}, fmt.Errorf("%w: special value NaN", errInvalidDecimal)
+	}
+	if data[15]&0b0111_1100 == 0b0111_1000 {
+		return Decimal{}, fmt.Errorf("%w: special value Inf", errInvalidDecimal)
+	}
+	if data[15]&0b0110_0000 == 0b0110_0000 {
+		return Decimal{}, fmt.Errorf("%w: unsupported encoding", errInvalidDecimal)
+	}
+
+	// Sign
+	neg := data[15]&0b1000_0000 == 0b1000_0000
+
+	// Scale
+	var scale int
+	scale |= int(data[14]) >> 1
+	scale |= int(data[15]&0b0111_1111) << 7
+	scale = 6176 - scale
+
+	// TODO fint optimization
+
+	// Coefficient
+	coef := getBint()
+	defer putBint(coef)
+
+	buf := make([]byte, 15)
+	for i := range 15 {
+		buf[i] = data[14-i]
+	}
+	buf[0] &= 0b0000_0001
+	coef.setBytes(buf)
+
+	// Scale normalization
+	if coef.sign() == 0 {
+		scale = max(scale, MinScale)
+	}
+
+	return newFromBint(neg, coef, scale, 0)
+}
+
+// ieeeDecimal128 returns a 128-bit IEEE 754-2008 decimal
+// floating point with binary integer decimal encoding.
+// The byte order of the result is little-endian.
+func (d Decimal) ieeeDecimal128() []byte {
+	var buf [16]byte
+	scale := d.Scale()
+	coef := d.Coef()
+
+	// Sign
+	if d.IsNeg() {
+		buf[15] = 0b1000_0000
+	}
+
+	// Scale
+	scale = 6176 - scale
+	buf[15] |= byte((scale >> 7) & 0b0111_1111)
+	buf[14] |= byte((scale << 1) & 0b1111_1110)
+
+	// Coefficient
+	for i := range 8 {
+		buf[i] = byte(coef & 0b1111_1111)
+		coef >>= 8
+	}
+
+	return buf[:]
 }
 
 // Scan implements the [sql.Scanner] interface.
-// See also constructor [Parse].
 //
 // [sql.Scanner]: https://pkg.go.dev/database/sql#Scanner
 func (d *Decimal) Scan(value any) error {
@@ -660,22 +907,31 @@ func (d *Decimal) Scan(value any) error {
 	switch value := value.(type) {
 	case string:
 		*d, err = Parse(value)
-	case []byte:
-		*d, err = Parse(string(value))
 	case int64:
 		*d, err = New(value, 0)
 	case float64:
 		*d, err = NewFromFloat64(value)
+	case []byte:
+		// Special case: MySQL driver sends DECIMAL as []byte
+		*d, err = parse(value)
+	case float32:
+		// Special case: MySQL driver sends FLOAT as float32
+		*d, err = NewFromFloat64(float64(value))
+	case uint64:
+		// Special case: ClickHouse driver sends 0 as uint64
+		*d, err = newSafe(false, fint(value), 0)
 	case nil:
-		err = fmt.Errorf("converting to %T: nil is not supported", d)
+		err = fmt.Errorf("%T does not support null values, use %T or *%T", Decimal{}, NullDecimal{}, Decimal{})
 	default:
-		err = fmt.Errorf("converting from %T to %T: type %T is not supported", value, d, value)
+		err = fmt.Errorf("type %T is not supported", value)
+	}
+	if err != nil {
+		err = fmt.Errorf("converting from %T to %T: %w", value, Decimal{}, err)
 	}
 	return err
 }
 
 // Value implements the [driver.Valuer] interface.
-// See also method [Decimal.String].
 //
 // [driver.Valuer]: https://pkg.go.dev/database/sql/driver#Valuer
 func (d Decimal) Value() (driver.Value, error) {
@@ -875,6 +1131,26 @@ func (d Decimal) Format(state fmt.State, verb rune) {
 	}
 }
 
+// Zero returns a decimal with a value of 0, having the same scale as decimal d.
+// See also methods [Decimal.One], [Decimal.ULP].
+func (d Decimal) Zero() Decimal {
+	return newUnsafe(false, 0, d.Scale())
+}
+
+// One returns a decimal with a value of 1, having the same scale as decimal d.
+// See also methods [Decimal.Zero], [Decimal.ULP].
+func (d Decimal) One() Decimal {
+	return newUnsafe(false, pow10[d.Scale()], d.Scale())
+}
+
+// ULP (Unit in the Last Place) returns the smallest representable positive
+// difference between two decimals with the same scale as decimal d.
+// It can be useful for implementing rounding and comparison algorithms.
+// See also methods [Decimal.Zero], [Decimal.One].
+func (d Decimal) ULP() Decimal {
+	return newUnsafe(false, 1, d.Scale())
+}
+
 // Prec returns the number of digits in the coefficient.
 // See also method [Decimal.Coef].
 func (d Decimal) Prec() int {
@@ -908,7 +1184,7 @@ func (d Decimal) MinScale() int {
 
 // IsInt returns true if there are no significant digits after the decimal point.
 func (d Decimal) IsInt() bool {
-	return d.coef%pow10[d.Scale()] == 0
+	return d.Scale() == 0 || d.coef%pow10[d.Scale()] == 0
 }
 
 // IsOne returns:
@@ -1176,12 +1452,13 @@ func prodFint(d ...Decimal) (Decimal, error) {
 func prodBint(d ...Decimal) (Decimal, error) {
 	ecoef := getBint()
 	defer putBint(ecoef)
-	ecoef.setFint(One.coef)
-	escale := One.Scale()
-	eneg := One.IsNeg()
 
 	fcoef := getBint()
 	defer putBint(fcoef)
+
+	ecoef.setFint(One.coef)
+	escale := One.Scale()
+	eneg := One.IsNeg()
 
 	for _, f := range d {
 		fcoef.setFint(f.coef)
@@ -1193,9 +1470,13 @@ func prodBint(d ...Decimal) (Decimal, error) {
 
 		// Intermediate truncation
 		if escale > bscale {
-			shift := escale - bscale
-			ecoef.rshDown(ecoef, shift)
+			ecoef.rshDown(ecoef, escale-bscale)
 			escale = bscale
+		}
+
+		// Check if e >= 10^59
+		if ecoef.hasPrec(len(bpow10)) {
+			return Decimal{}, unknownOverflowError()
 		}
 	}
 
@@ -1301,15 +1582,16 @@ func meanFint(d ...Decimal) (Decimal, error) {
 func meanBint(d ...Decimal) (Decimal, error) {
 	ecoef := getBint()
 	defer putBint(ecoef)
-	ecoef.setFint(Zero.coef)
-	escale := Zero.Scale()
-	eneg := Zero.IsNeg()
 
 	fcoef := getBint()
 	defer putBint(fcoef)
 
 	ncoef := getBint()
 	defer putBint(ncoef)
+
+	ecoef.setFint(Zero.coef)
+	escale := Zero.Scale()
+	eneg := Zero.IsNeg()
 	ncoef.setInt64(int64(len(d)))
 
 	for _, f := range d {
@@ -1397,12 +1679,13 @@ func (d Decimal) mulFint(e Decimal, minScale int) (Decimal, error) {
 func (d Decimal) mulBint(e Decimal, minScale int) (Decimal, error) {
 	dcoef := getBint()
 	defer putBint(dcoef)
-	dcoef.setFint(d.coef)
-	dscale := d.Scale()
-	dneg := d.IsNeg()
 
 	ecoef := getBint()
 	defer putBint(ecoef)
+
+	dcoef.setFint(d.coef)
+	dscale := d.Scale()
+	dneg := d.IsNeg()
 	ecoef.setFint(e.coef)
 
 	// Compute d = d * e
@@ -1416,7 +1699,7 @@ func (d Decimal) mulBint(e Decimal, minScale int) (Decimal, error) {
 // Pow returns the (possibly rounded) decimal raised to the given decimal power.
 // If zero is raised to zero power then the result is one.
 //
-// PowInt returns an error if:
+// Pow returns an error if:
 //   - the integer part of the result has more than [MaxPrec] digits;
 //   - zero is raised to a negative power;
 //   - negative is raised to a fractional power.
@@ -1428,7 +1711,7 @@ func (d Decimal) Pow(e Decimal) (Decimal, error) {
 
 	// Special case: integer power
 	if e.IsInt() {
-		power := e.Trim(0).Coef()
+		power := e.Trunc(0).Coef()
 		f, err := d.powIntFint(power, e.IsNeg())
 		if err != nil {
 			f, err = d.powIntBint(power, e.IsNeg())
@@ -1499,7 +1782,7 @@ func (d Decimal) powBint(e Decimal) (Decimal, error) {
 	// Check if f <= -100 or f >= 100
 	if fcoef.hasPrec(3 + bscale) {
 		if !inv {
-			return Decimal{}, unknownOverflowError(0)
+			return Decimal{}, unknownOverflowError()
 		}
 		return newSafe(false, 0, MaxScale)
 	}
@@ -1608,12 +1891,14 @@ func (d Decimal) powIntFint(pow uint64, inv bool) (Decimal, error) {
 func (d Decimal) powIntBint(pow uint64, inv bool) (Decimal, error) {
 	dcoef := getBint()
 	defer putBint(dcoef)
+
+	ecoef := getBint()
+	defer putBint(ecoef)
+
 	dcoef.setFint(d.coef)
 	dneg := d.IsNeg()
 	dscale := d.Scale()
 
-	ecoef := getBint()
-	defer putBint(ecoef)
 	ecoef.setFint(One.coef)
 	eneg := One.IsNeg()
 	escale := One.Scale()
@@ -1630,15 +1915,14 @@ func (d Decimal) powIntBint(pow uint64, inv bool) (Decimal, error) {
 
 			// Intermediate truncation
 			if escale > bscale {
-				shift := escale - bscale
-				ecoef.rshDown(ecoef, shift)
+				ecoef.rshDown(ecoef, escale-bscale)
 				escale = bscale
 			}
 
-			// Check if e <= -10^60 or e >= 10^60
+			// Check if e <= -10^59 or e >= 10^59
 			if ecoef.hasPrec(len(bpow10)) {
 				if !inv {
-					return Decimal{}, unknownOverflowError(0)
+					return Decimal{}, unknownOverflowError()
 				}
 				return newSafe(false, 0, MaxScale)
 			}
@@ -1653,15 +1937,14 @@ func (d Decimal) powIntBint(pow uint64, inv bool) (Decimal, error) {
 
 			// Intermediate truncation
 			if dscale > bscale {
-				shift := dscale - bscale
-				dcoef.rshDown(dcoef, shift)
+				dcoef.rshDown(dcoef, dscale-bscale)
 				dscale = bscale
 			}
 
-			// Check if d <= -10^60 or d >= 10^60
+			// Check if d <= -10^59 or d >= 10^59
 			if dcoef.hasPrec(len(bpow10)) {
 				if !inv {
-					return Decimal{}, unknownOverflowError(0)
+					return Decimal{}, unknownOverflowError()
 				}
 				return newSafe(false, 0, MaxScale)
 			}
@@ -1670,7 +1953,7 @@ func (d Decimal) powIntBint(pow uint64, inv bool) (Decimal, error) {
 
 	if inv {
 		if ecoef.sign() == 0 {
-			return Decimal{}, unknownOverflowError(0)
+			return Decimal{}, unknownOverflowError()
 		}
 
 		// Compute e = ⌊1 / e⌋
@@ -1681,7 +1964,7 @@ func (d Decimal) powIntBint(pow uint64, inv bool) (Decimal, error) {
 	return newFromBint(eneg, ecoef, escale, 0)
 }
 
-// Sqrt computes the square root of a decimal.
+// Sqrt computes the (possibly rounded) square root of a decimal.
 // d.Sqrt() is significantly faster than d.Pow(0.5).
 //
 // Sqrt returns an error if the decimal is negative.
@@ -1766,9 +2049,9 @@ func (d Decimal) Log2() (Decimal, error) {
 
 	// Preferred scale
 	if e.IsInt() {
-		// This is workaround, according to the GDA
-		// we should only trim if d is an integer power of 2.
-		e = e.Trim(0)
+		// According to the GDA, only integer powers of 2 should be trimmed to zero scale.
+		// However, such validation is slow, so we will trim all integers.
+		e = e.Trunc(0)
 	}
 
 	return e, nil
@@ -1826,9 +2109,9 @@ func (d Decimal) Log10() (Decimal, error) {
 
 	// Preferred scale
 	if e.IsInt() {
-		// This is workaround, according to the GDA
-		// we should only trim if d is an integer power of 10.
-		e = e.Trim(0)
+		// According to the GDA, only integer powers of 10 should be trimmed to zero scale.
+		// However, such validation is slow, so we will trim all integers.
+		e = e.Trunc(0)
 	}
 
 	return e, nil
@@ -1864,6 +2147,57 @@ func (d Decimal) log10Bint() (Decimal, error) {
 	return newFromBint(eneg, ecoef, bscale, 0)
 }
 
+// Log1p returns the (possibly rounded) shifted natural logarithm of a decimal.
+//
+// Log1p returns an error if the decimal is equal to or less than negative one.
+func (d Decimal) Log1p() (Decimal, error) {
+	if d.IsNeg() && d.Cmp(NegOne) <= 0 {
+		return Decimal{}, fmt.Errorf("computing log1p(%v): %w: logarithm of a decimal less than or equal to -1", d, errInvalidOperation)
+	}
+
+	// Special case: zero
+	if d.IsZero() {
+		return newSafe(false, 0, 0)
+	}
+
+	// General case
+	e, err := d.log1pBint()
+	if err != nil {
+		return Decimal{}, fmt.Errorf("computing log1p(%v): %w", d, err)
+	}
+
+	return e, nil
+}
+
+// log1pBint computes the shifted natural logarithm of a decimal using *big.Int arithmetic.
+func (d Decimal) log1pBint() (Decimal, error) {
+	dcoef := getBint()
+	defer putBint(dcoef)
+
+	ecoef := getBint()
+	defer putBint(ecoef)
+
+	dcoef.setFint(d.coef)
+	eneg := false
+
+	// Alignment
+	if d.IsNeg() {
+		// Compute d = ⌊1 / (d + 1)⌋
+		dcoef.subAbs(dcoef, bpow10[d.Scale()])
+		dcoef.quo(bpow10[bscale+d.Scale()], dcoef)
+		eneg = true
+	} else {
+		// Compute d = d + 1
+		dcoef.add(dcoef, bpow10[d.Scale()])
+		dcoef.lsh(dcoef, bscale-d.Scale())
+	}
+
+	// Compute e = log(d)
+	ecoef.log(dcoef)
+
+	return newFromBint(eneg, ecoef, bscale, 0)
+}
+
 // Log returns the (possibly rounded) natural logarithm of a decimal.
 //
 // Log returns an error if the decimal is zero or negative.
@@ -1876,11 +2210,6 @@ func (d Decimal) Log() (Decimal, error) {
 	// Special case: one
 	if d.IsOne() {
 		return newSafe(false, 0, 0)
-	}
-
-	// Special case: Euler's number
-	if d == E {
-		return newSafe(false, 1000000000000000000, 18)
 	}
 
 	// General case
@@ -1920,8 +2249,8 @@ func (d Decimal) logBint() (Decimal, error) {
 
 // log calculates z = log(x) using Halley's method.
 // The argument x must satisfy x >= 1, otherwise the result is undefined.
-// x must be represented as a big integer: round(x * 10^40).
-// The result z is represented as a big integer: round(z * 10^40).
+// x must be represented as a big integer: round(x * 10^41).
+// The result z is represented as a big integer: round(z * 10^41).
 func (z *bint) log(x *bint) {
 	zcoef := getBint()
 	defer putBint(zcoef)
@@ -1975,7 +2304,7 @@ func (d Decimal) Exp() (Decimal, error) {
 	// Special case: overflow
 	if d.CmpAbs(Hundred) >= 0 {
 		if !d.IsNeg() {
-			return Decimal{}, unknownOverflowError(0)
+			return Decimal{}, fmt.Errorf("computing exp(%v): %w", d, unknownOverflowError())
 		}
 		return newSafe(false, 0, MaxScale)
 	}
@@ -2007,7 +2336,7 @@ func (d Decimal) expBint() (Decimal, error) {
 
 	if d.IsNeg() {
 		if ecoef.sign() == 0 {
-			return Decimal{}, unknownOverflowError(0)
+			return Decimal{}, unknownOverflowError()
 		}
 		// Compute e = ⌊1 / e⌋
 		ecoef.quo(bpow10[2*bscale], ecoef)
@@ -2016,10 +2345,70 @@ func (d Decimal) expBint() (Decimal, error) {
 	return newFromBint(false, ecoef, bscale, 0)
 }
 
+// Expm1 returns the (possibly rounded) shifted exponential of a decimal.
+//
+// Expm1 returns an error if the integer part of the result has more than [MaxPrec] digits.
+func (d Decimal) Expm1() (Decimal, error) {
+	// Special case: zero
+	if d.IsZero() {
+		return newSafe(false, 0, 0)
+	}
+
+	// Special case: overflow
+	if d.CmpAbs(Hundred) >= 0 {
+		if !d.IsNeg() {
+			return Decimal{}, fmt.Errorf("computing expm1(%v): %w", d, unknownOverflowError())
+		}
+		return newSafe(true, pow10[MaxScale-1], MaxScale-1)
+	}
+
+	// General case
+	e, err := d.expm1Bint()
+	if err != nil {
+		return Decimal{}, fmt.Errorf("computing expm1(%v): %w", d, err)
+	}
+
+	return e, nil
+}
+
+// expm1Bint computes shifted exponential of a decimal using *big.Int arithmetic.
+func (d Decimal) expm1Bint() (Decimal, error) {
+	dcoef := getBint()
+	defer putBint(dcoef)
+
+	ecoef := getBint()
+	defer putBint(ecoef)
+
+	dcoef.setFint(d.coef)
+
+	// Alignment
+	dcoef.lsh(dcoef, bscale-d.Scale())
+
+	// Compute e = exp(d)
+	ecoef.exp(dcoef)
+
+	if d.IsNeg() {
+		if ecoef.sign() == 0 {
+			return Decimal{}, unknownOverflowError()
+		}
+		// Compute e = ⌊1 / e⌋
+		ecoef.quo(bpow10[2*bscale], ecoef)
+	}
+
+	// Compute e = e - 1
+	eneg := false
+	if ecoef.cmp(bpow10[bscale]) < 0 {
+		eneg = true
+	}
+	ecoef.subAbs(ecoef, bpow10[bscale])
+
+	return newFromBint(eneg, ecoef, bscale, 0)
+}
+
 // exp calculates z = exp(x) using Taylor series expansion.
 // The argument x must satisfy 0 <= x < 100, otherwise the result is undefined.
-// The argument x must be represented as a big integer: round(x * 10^40).
-// The result z is represented as a big integer: round(z * 10^40).
+// The argument x must be represented as a big integer: round(x * 10^41).
+// The result z is represented as a big integer: round(z * 10^41).
 func (z *bint) exp(x *bint) {
 	qcoef := getBint()
 	defer putBint(qcoef)
@@ -2030,7 +2419,7 @@ func (z *bint) exp(x *bint) {
 	// Split x into integer part q and fractional part r
 	qcoef.quoRem(x, bpow10[bscale], rcoef)
 
-	// Compute z = exp(q) from precomputed cache
+	// Retrieve z = exp(q) from precomputed cache
 	z.setBint(bexp[int(qcoef.fint())]) //nolint:gosec
 
 	if rcoef.sign() == 0 {
@@ -2139,12 +2528,13 @@ func sumFint(d ...Decimal) (Decimal, error) {
 func sumBint(d ...Decimal) (Decimal, error) {
 	ecoef := getBint()
 	defer putBint(ecoef)
-	ecoef.setFint(Zero.coef)
-	escale := Zero.Scale()
-	eneg := Zero.IsNeg()
 
 	fcoef := getBint()
 	defer putBint(fcoef)
+
+	ecoef.setFint(Zero.coef)
+	escale := Zero.Scale()
+	eneg := Zero.IsNeg()
 
 	for _, f := range d {
 		fcoef.setFint(f.coef)
@@ -2272,13 +2662,14 @@ func (d Decimal) addFint(e Decimal, minScale int) (Decimal, error) {
 func (d Decimal) addBint(e Decimal, minScale int) (Decimal, error) {
 	dcoef := getBint()
 	defer putBint(dcoef)
-	dcoef.setFint(d.coef)
-	dscale := d.Scale()
-	dneg := d.IsNeg()
 
 	ecoef := getBint()
 	defer putBint(ecoef)
+
+	dcoef.setFint(d.coef)
+	dscale := d.Scale()
 	ecoef.setFint(e.coef)
+	dneg := d.IsNeg()
 
 	// Alignment
 	switch {
@@ -2413,18 +2804,19 @@ func (d Decimal) addMulFint(e, f Decimal, minScale int) (Decimal, error) {
 func (d Decimal) addMulBint(e, f Decimal, minScale int) (Decimal, error) {
 	dcoef := getBint()
 	defer putBint(dcoef)
-	dcoef.setFint(d.coef)
-	dscale := d.Scale()
-	dneg := d.IsNeg()
 
 	ecoef := getBint()
 	defer putBint(ecoef)
-	ecoef.setFint(e.coef)
-	escale := e.Scale()
-	eneg := e.IsNeg()
 
 	fcoef := getBint()
 	defer putBint(fcoef)
+
+	dcoef.setFint(d.coef)
+	dscale := d.Scale()
+	dneg := d.IsNeg()
+	ecoef.setFint(e.coef)
+	escale := e.Scale()
+	eneg := e.IsNeg()
 	fcoef.setFint(f.coef)
 
 	// Compute e = e * f
@@ -2597,16 +2989,17 @@ func (d Decimal) addQuoFint(e, f Decimal, minScale int) (Decimal, error) {
 func (d Decimal) addQuoBint(e, f Decimal, minScale int) (Decimal, error) {
 	dcoef := getBint()
 	defer putBint(dcoef)
-	dcoef.setFint(d.coef)
-	dneg := d.IsNeg()
 
 	ecoef := getBint()
 	defer putBint(ecoef)
-	ecoef.setFint(e.coef)
-	eneg := e.IsNeg()
 
 	fcoef := getBint()
 	defer putBint(fcoef)
+
+	dcoef.setFint(d.coef)
+	dneg := d.IsNeg()
+	ecoef.setFint(e.coef)
+	eneg := e.IsNeg()
 	fcoef.setFint(f.coef)
 
 	// Alignment
@@ -2728,11 +3121,12 @@ func (d Decimal) quoFint(e Decimal, minScale int) (Decimal, error) {
 func (d Decimal) quoBint(e Decimal, minScale int) (Decimal, error) {
 	dcoef := getBint()
 	defer putBint(dcoef)
-	dcoef.setFint(d.coef)
-	dneg := d.IsNeg()
 
 	ecoef := getBint()
 	defer putBint(ecoef)
+
+	dcoef.setFint(d.coef)
+	dneg := d.IsNeg()
 	ecoef.setFint(e.coef)
 
 	// Alignment
@@ -2815,17 +3209,18 @@ func (d Decimal) quoRemFint(e Decimal) (q, r Decimal, err error) {
 func (d Decimal) quoRemBint(e Decimal) (q, r Decimal, err error) {
 	dcoef := getBint()
 	defer putBint(dcoef)
-	dcoef.setFint(d.coef)
 
 	ecoef := getBint()
 	defer putBint(ecoef)
-	ecoef.setFint(e.coef)
 
 	qcoef := getBint()
 	defer putBint(qcoef)
 
 	rcoef := getBint()
 	defer putBint(rcoef)
+
+	dcoef.setFint(d.coef)
+	ecoef.setFint(e.coef)
 	rscale := d.Scale()
 
 	// Alignment
@@ -3015,10 +3410,11 @@ func (d Decimal) cmpFint(e Decimal) (int, error) {
 func (d Decimal) cmpBint(e Decimal) int {
 	dcoef := getBint()
 	defer putBint(dcoef)
-	dcoef.setFint(d.coef)
 
 	ecoef := getBint()
 	defer putBint(ecoef)
+
+	dcoef.setFint(d.coef)
 	ecoef.setFint(e.coef)
 
 	// Alignment
@@ -3048,7 +3444,7 @@ type NullDecimal struct {
 }
 
 // Scan implements the [sql.Scanner] interface.
-// See also constructor [Parse].
+// See also method [Decimal.Scan].
 //
 // [sql.Scanner]: https://pkg.go.dev/database/sql#Scanner
 func (n *NullDecimal) Scan(value any) error {
@@ -3062,7 +3458,7 @@ func (n *NullDecimal) Scan(value any) error {
 }
 
 // Value implements the [driver.Valuer] interface.
-// See also method [Decimal.String].
+// See also method [Decimal.Value].
 //
 // [driver.Valuer]: https://pkg.go.dev/database/sql/driver#Valuer
 func (n NullDecimal) Value() (driver.Value, error) {
@@ -3070,4 +3466,62 @@ func (n NullDecimal) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return n.Decimal.Value()
+}
+
+// UnmarshalJSON implements the [json.Unmarshaler] interface.
+// See also method [Decimal.UnmarshalJSON].
+//
+// [json.Unmarshaler]: https://pkg.go.dev/encoding/json#Unmarshaler
+func (n *NullDecimal) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		n.Decimal = Decimal{}
+		n.Valid = false
+		return nil
+	}
+	n.Valid = true
+	return n.Decimal.UnmarshalJSON(data)
+}
+
+// MarshalJSON implements the [json.Marshaler] interface.
+// See also method [Decimal.MarshalJSON].
+//
+// [json.Marshaler]: https://pkg.go.dev/encoding/json#Marshaler
+func (n NullDecimal) MarshalJSON() ([]byte, error) {
+	if !n.Valid {
+		return []byte("null"), nil
+	}
+	return n.Decimal.MarshalJSON()
+}
+
+// UnmarshalBSONValue implements the [v2/bson.ValueUnmarshaler] interface.
+// UnmarshalBSONValue supports the following [types]: Null, Double, String, 32-bit Integer, 64-bit Integer, and [Decimal128].
+// See also method [Decimal.UnmarshalBSONValue].
+//
+// [v2/bson.ValueUnmarshaler]: https://pkg.go.dev/go.mongodb.org/mongo-driver/v2/bson#ValueUnmarshaler
+// [types]: https://bsonspec.org/spec.html
+// [Decimal128]: https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.md
+func (n *NullDecimal) UnmarshalBSONValue(typ byte, data []byte) error {
+	// constants are from https://bsonspec.org/spec.html
+	if typ == 10 {
+		n.Decimal = Decimal{}
+		n.Valid = false
+		return nil
+	}
+	n.Valid = true
+	return n.Decimal.UnmarshalBSONValue(typ, data)
+}
+
+// MarshalBSONValue implements the [v2/bson.ValueMarshaler] interface.
+// MarshalBSONValue returns [Null] or [Decimal128].
+// See also method [Decimal.MarshalBSONValue].
+//
+// [v2/bson.ValueMarshaler]: https://pkg.go.dev/go.mongodb.org/mongo-driver/v2/bson#ValueMarshaler
+// [Null]: https://bsonspec.org/spec.html
+// [Decimal128]: https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.md
+func (n NullDecimal) MarshalBSONValue() (typ byte, data []byte, err error) {
+	// constants are from https://bsonspec.org/spec.html
+	if !n.Valid {
+		return 10, nil, nil
+	}
+	return n.Decimal.MarshalBSONValue()
 }

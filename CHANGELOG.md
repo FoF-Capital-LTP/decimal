@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.36] - 2025-01-19
+
+### Added
+
+- Implemented `Decimal.AppendText`, `Decimal.AppendBinary`, `Decimal.Expm1`, `Decimal.Log1p`.
+
+## [0.1.35] - 2025-01-12
+
+### Added
+
+- Implemented `Decimal.UnmarshalJSON`, `Decimal.MarshalJSON`, `Decimal.UnmarshalBSONValue`, `Decimal.MarshalBSONValue`.
+
 ## [0.1.34] - 2024-12-27
 
 ### Added

@@ -105,38 +105,6 @@ func (d *Decimal) GobDecode(data []byte) error {
 	return d.UnmarshalBinary(data)
 }
 
-func unquoteIfQuoted(value []byte) (string, error) {
-	// If the amount is quoted, strip the quotes
-	if len(value) > 2 && value[0] == '"' && value[len(value)-1] == '"' {
-		value = value[1 : len(value)-1]
-	}
-	return string(value), nil
-}
-
-// UnmarshalJSON implements the json.Unmarshaler interface.
-func (d *Decimal) UnmarshalJSON(decimalBytes []byte) error {
-	if string(decimalBytes) == "null" {
-		return nil
-	}
-
-	str, err := unquoteIfQuoted(decimalBytes)
-	if err != nil {
-		return fmt.Errorf("error decoding string '%s': %s", decimalBytes, err)
-	}
-
-	decimal, err := NewFromString(str)
-	*d = decimal
-	if err != nil {
-		return fmt.Errorf("error decoding string '%s': %s", str, err)
-	}
-	return nil
-}
-
-// MarshalJSON implements the json.Marshaler interface.
-func (d Decimal) MarshalJSON() ([]byte, error) {
-	return []byte(d.String()), nil
-}
-
 func (d Decimal) MulIgnoreError(e Decimal) Decimal {
 	res, _ := d.Mul(e)
 	return res
