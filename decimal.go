@@ -637,11 +637,7 @@ func (d *Decimal) UnmarshalJSON(data []byte) error {
 // [numeric string]: https://datatracker.ietf.org/doc/html/rfc8259#section-7
 // [json.Marshaler]: https://pkg.go.dev/encoding/json#Marshaler
 func (d Decimal) MarshalJSON() ([]byte, error) {
-	text := make([]byte, 0, 26)
-	text = append(text, '"')
-	text = d.append(text)
-	text = append(text, '"')
-	return text, nil
+	return d.bytes(), nil
 }
 
 // UnmarshalText implements the [encoding.TextUnmarshaler] interface.
